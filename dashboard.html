@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Options Levels Tracker - Dashboard</title>
+    <title>Options Levels Tracker - Real-Time</title>
     <style>
         * {
             margin: 0;
@@ -136,7 +136,7 @@
         }
 
         .sidebar {
-            width: 280px;
+            width: 300px;
             background: #1e222d;
             border-left: 1px solid #363a45;
             overflow-y: auto;
@@ -187,14 +187,6 @@
             background: #ff0000;
         }
 
-        .dot.bg {
-            background: #00bcd4;
-        }
-
-        .dot.sg {
-            background: #ff9800;
-        }
-
         .dot.c {
             background: #2962ff;
         }
@@ -211,14 +203,6 @@
 
         .level-value.s {
             color: #ff0000;
-        }
-
-        .level-value.bg {
-            color: #00bcd4;
-        }
-
-        .level-value.sg {
-            color: #ff9800;
         }
 
         .level-value.c {
@@ -291,57 +275,12 @@
             color: #ffeb3b;
         }
 
-        .toggle-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 4px 0;
-        }
-
-        .toggle-switch {
-            position: relative;
-            width: 32px;
-            height: 18px;
-        }
-
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .toggle-slider {
-            position: absolute;
-            cursor: pointer;
-            inset: 0;
-            background: #2a2e39;
-            border-radius: 18px;
-            transition: 0.2s;
-        }
-
-        .toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 12px;
-            width: 12px;
-            left: 3px;
-            bottom: 3px;
-            background: #787b86;
-            border-radius: 50%;
-            transition: 0.2s;
-        }
-
-        .toggle-switch input:checked+.toggle-slider {
-            background: #2962ff;
-        }
-
-        .toggle-switch input:checked+.toggle-slider:before {
-            transform: translateX(14px);
-            background: white;
+        .stats-value.cyan {
+            color: #00bcd4;
         }
 
         .history-list {
-            max-height: 120px;
+            max-height: 200px;
             overflow-y: auto;
         }
 
@@ -366,12 +305,32 @@
         .history-s {
             color: #ff0000;
         }
+
+        .btn-refresh {
+            background: #2962ff !important;
+            border-color: #2962ff !important;
+            margin-left: auto;
+        }
+
+        .loading {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 
 <body>
     <header class="header">
-        <div class="logo">📊 Options Levels Tracker (Dynamic)</div>
+        <div class="logo">📊 Options Levels (Real-Time)</div>
         <div class="price-box">
             <span class="price" id="price">$---,---</span>
             <span class="change up" id="change">+0.00%</span>
@@ -391,49 +350,32 @@
                 <button data-tf="60">1H</button>
                 <button data-tf="240">4H</button>
                 <button data-tf="D">1D</button>
+                <button class="btn-refresh" id="btn-refresh">🔄 Refresh Levels</button>
             </div>
             <div id="chart"></div>
         </div>
 
         <aside class="sidebar">
             <div class="panel">
-                <div class="panel-title">📊 Current Levels</div>
-
+                <div class="panel-title">📊 Tomorrow's Prediction (Live)</div>
                 <div class="level">
                     <div class="level-label">
                         <div class="dot r"></div> Resistance
                     </div>
-                    <span class="level-value r" id="r-val">$---</span>
+                    <span class="level-value r" id="r-val">Calculating...</span>
                 </div>
-
-                <div class="level">
-                    <div class="level-label">
-                        <div class="dot bg"></div> Buyer Gamma
-                    </div>
-                    <span class="level-value bg" id="bg-val">$---</span>
-                </div>
-
                 <div class="level">
                     <div class="level-label">
                         <div class="dot c"></div> Current Price
                     </div>
                     <span class="level-value c" id="c-val">$---</span>
                 </div>
-
-                <div class="level">
-                    <div class="level-label">
-                        <div class="dot sg"></div> Seller Gamma
-                    </div>
-                    <span class="level-value sg" id="sg-val">$---</span>
-                </div>
-
                 <div class="level">
                     <div class="level-label">
                         <div class="dot s"></div> Support
                     </div>
-                    <span class="level-value s" id="s-val">$---</span>
+                    <span class="level-value s" id="s-val">Calculating...</span>
                 </div>
-
                 <div class="position-bar">
                     <div class="position-fill"></div>
                     <div class="position-marker" id="marker" style="left:50%"></div>
@@ -442,19 +384,7 @@
             </div>
 
             <div class="panel">
-                <div class="panel-title">⚙️ Display</div>
-                <div class="toggle-row"><span>Resistance</span><label class="toggle-switch"><input type="checkbox"
-                            id="show-r" checked><span class="toggle-slider"></span></label></div>
-                <div class="toggle-row"><span>Support</span><label class="toggle-switch"><input type="checkbox"
-                            id="show-s" checked><span class="toggle-slider"></span></label></div>
-                <div class="toggle-row"><span>Buyer Gamma</span><label class="toggle-switch"><input type="checkbox"
-                            id="show-bg" checked><span class="toggle-slider"></span></label></div>
-                <div class="toggle-row"><span>Seller Gamma</span><label class="toggle-switch"><input type="checkbox"
-                            id="show-sg" checked><span class="toggle-slider"></span></label></div>
-            </div>
-
-            <div class="panel">
-                <div class="panel-title">📈 Statistics</div>
+                <div class="panel-title">📈 Live Stats</div>
                 <div class="stats-row"><span class="stats-label">Range</span><span class="stats-value yellow"
                         id="stat-range">$---</span></div>
                 <div class="stats-row"><span class="stats-label">Dist to R</span><span class="stats-value green"
@@ -466,9 +396,23 @@
             </div>
 
             <div class="panel">
-                <div class="panel-title">🔄 Level History</div>
+                <div class="panel-title">🔄 Thales OSS Data</div>
+                <div class="stats-row"><span class="stats-label">Expiry</span><span class="stats-value cyan"
+                        id="stat-expiry">Tomorrow</span></div>
+                <div class="stats-row"><span class="stats-label">Long Positions</span><span class="stats-value"
+                        id="stat-longs">--</span></div>
+                <div class="stats-row"><span class="stats-label">Short Positions</span><span class="stats-value"
+                        id="stat-shorts">--</span></div>
+                <div class="stats-row"><span class="stats-label">Last Calc</span><span class="stats-value"
+                        id="stat-time">--:--</span></div>
+                <div class="stats-row"><span class="stats-label">Next Update</span><span class="stats-value cyan"
+                        id="stat-next">--:--</span></div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">📜 Level History (Today)</div>
                 <div class="history-list" id="history-list">
-                    <div class="history-item"><span class="history-time">Monitoring...</span></div>
+                    <div class="history-item"><span class="history-time">Waiting for data...</span></div>
                 </div>
             </div>
         </aside>
@@ -477,177 +421,314 @@
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <script>
         // ═══════════════════════════════════════════════════════════════════════════════
+        // CONFIGURATION
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        const THALES_API = 'https://oss.thales-mfi.com/api/MarketScreener/FetchOptions';
+        const UPDATE_INTERVAL_MS = 60000; // 1 minute
+        const CORS_PROXY = 'https://corsproxy.io/?'; // Free CORS proxy
+
+        // ═══════════════════════════════════════════════════════════════════════════════
         // STATE
         // ═══════════════════════════════════════════════════════════════════════════════
-        
-        let chart, candleSeries;
-        let rSeries, sSeries, bgSeries, sgSeries; // Dynamic line series (like MAs)
-        let currentLevels = { r: 0, s: 0, bg: 0, sg: 0 };
+
+        let chart, candleSeries, rSeries, sSeries;
+        let currentLevels = { r: 0, s: 0 };
         let currentPrice = 0;
         let timeframe = '15';
         let ws = null;
-        let intradayHistory = [];
-        
-        // Store historical level data for dynamic lines
-        let levelHistory = {
-            r: [],   // [{time, value}]
-            s: [],
-            bg: [],
-            sg: []
-        };
-        
+        let levelHistory = [];
+        let nextUpdateTime = null;
+
         // ═══════════════════════════════════════════════════════════════════════════════
-        // CHART INITIALIZATION
+        // THALES OSS CALCULATION (Ported from Python)
         // ═══════════════════════════════════════════════════════════════════════════════
-        
+
+        function getTomorrowExpiryCode() {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setUTCHours(0, 0, 0, 0);
+            const epoch = new Date(0);
+            const daysSinceEpoch = Math.floor((tomorrow - epoch) / (1000 * 60 * 60 * 24));
+            const dateStr = `${tomorrow.getDate().toString().padStart(2, '0')}/${(tomorrow.getMonth() + 1).toString().padStart(2, '0')}/${tomorrow.getFullYear()}`;
+            return { code: daysSinceEpoch, dateStr };
+        }
+
+        function parseOptionsCSV(csvData, targetExpiryCode) {
+            const longs = [];
+            const shorts = [];
+
+            const lines = csvData.trim().split('\n');
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                const parts = line.split(',');
+                if (parts.length < 7) continue;
+
+                try {
+                    const optionType = parseInt(parts[0]);
+                    const expiryCode = parseInt(parts[1]);
+                    const strike = parseFloat(parts[2]);
+                    const side = parseInt(parts[4]);
+                    const size = parseFloat(parts[5]);
+                    const entryPriceUSD = parseFloat(parts[6]);
+
+                    if (expiryCode !== targetExpiryCode) continue;
+
+                    const position = {
+                        type: optionType === 0 ? 'call' : 'put',
+                        strike,
+                        size,
+                        premium_usd: entryPriceUSD
+                    };
+
+                    if (side === 0) {
+                        longs.push(position);
+                    } else {
+                        shorts.push(position);
+                    }
+                } catch (e) {
+                    continue;
+                }
+            }
+
+            return { longs, shorts };
+        }
+
+        function calculatePnLAtExpiry(positions, underlyingPrice, isBuyer) {
+            let totalPnL = 0;
+
+            for (const pos of positions) {
+                const strike = pos.strike;
+                const size = pos.size;
+                const premium = pos.premium_usd;
+
+                let intrinsic;
+                if (pos.type === 'call') {
+                    intrinsic = Math.max(underlyingPrice - strike, 0);
+                } else {
+                    intrinsic = Math.max(strike - underlyingPrice, 0);
+                }
+
+                let pnl;
+                if (isBuyer) {
+                    pnl = (intrinsic - premium) * size;
+                } else {
+                    pnl = (premium - intrinsic) * size;
+                }
+
+                totalPnL += pnl;
+            }
+
+            return totalPnL;
+        }
+
+        function findConvergencePoints(longs, shorts) {
+            const allStrikes = [...longs, ...shorts].map(p => p.strike);
+            if (allStrikes.length === 0) return { support: 85000, resistance: 100000 };
+
+            const minStrike = Math.min(...allStrikes);
+            const maxStrike = Math.max(...allStrikes);
+
+            const priceMin = Math.floor(minStrike * 0.90);
+            const priceMax = Math.ceil(maxStrike * 1.10);
+            const step = 10;
+
+            const intersections = [];
+            let prevLongPnL = null;
+            let prevShortPnL = null;
+
+            for (let price = priceMin; price < priceMax; price += step) {
+                const longPnL = calculatePnLAtExpiry(longs, price, true);
+                const shortPnL = calculatePnLAtExpiry(shorts, price, false);
+
+                if (prevLongPnL !== null) {
+                    const prevDiff = prevLongPnL - prevShortPnL;
+                    const currDiff = longPnL - shortPnL;
+
+                    if (prevDiff * currDiff < 0) {
+                        const t = Math.abs(prevDiff) / (Math.abs(prevDiff) + Math.abs(currDiff));
+                        const crossingPrice = (price - step) + t * step;
+                        intersections.push(Math.round(crossingPrice));
+                    }
+                }
+
+                prevLongPnL = longPnL;
+                prevShortPnL = shortPnL;
+            }
+
+            console.log(`Found ${intersections.length} intersection points:`, intersections);
+
+            if (intersections.length >= 2) {
+                return { support: intersections[0], resistance: intersections[intersections.length - 1] };
+            } else if (intersections.length === 1) {
+                return { support: intersections[0], resistance: intersections[0] };
+            } else {
+                const meanStrike = allStrikes.reduce((a, b) => a + b, 0) / allStrikes.length;
+                return { support: Math.round(meanStrike * 0.95), resistance: Math.round(meanStrike * 1.05) };
+            }
+        }
+
+        async function fetchAndCalculateLevels() {
+            const btn = document.getElementById('btn-refresh');
+            btn.classList.add('loading');
+            btn.disabled = true;
+            document.getElementById('status').textContent = 'Calculating...';
+
+            try {
+                const now = new Date();
+                const startOfDay = new Date(now);
+                startOfDay.setUTCHours(0, 0, 0, 0);
+
+                const fromTimestamp = startOfDay.getTime();
+                const toTimestamp = now.getTime();
+
+                const url = `${CORS_PROXY}${THALES_API}?source=1&fromDate=${fromTimestamp}&toDate=${toTimestamp}`;
+
+                console.log('Fetching from Thales OSS...');
+                const response = await fetch(url);
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const csvData = await response.text();
+                const totalLines = csvData.trim().split('\n').length;
+                console.log(`Received ${totalLines} trade records`);
+
+                const { code: expiryCode, dateStr: expiryDate } = getTomorrowExpiryCode();
+                document.getElementById('stat-expiry').textContent = expiryDate;
+
+                const { longs, shorts } = parseOptionsCSV(csvData, expiryCode);
+                console.log(`Longs: ${longs.length}, Shorts: ${shorts.length}`);
+
+                document.getElementById('stat-longs').textContent = longs.length;
+                document.getElementById('stat-shorts').textContent = shorts.length;
+
+                if (longs.length === 0 || shorts.length === 0) {
+                    console.warn('Not enough data');
+                    document.getElementById('status').textContent = 'No data';
+                    return;
+                }
+
+                const { support, resistance } = findConvergencePoints(longs, shorts);
+
+                // Track changes
+                if (currentLevels.r > 0 && (resistance !== currentLevels.r || support !== currentLevels.s)) {
+                    levelHistory.unshift({
+                        time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                        r: resistance,
+                        s: support
+                    });
+                    if (levelHistory.length > 50) levelHistory.pop();
+                    updateHistory();
+                }
+
+                currentLevels = { r: resistance, s: support };
+
+                // Update dynamic lines
+                updateDynamicLines();
+                updateUI();
+                updateStats();
+
+                document.getElementById('stat-time').textContent = now.toLocaleTimeString();
+                document.getElementById('status').textContent = 'Live';
+
+                console.log(`✅ Resistance: ${resistance}, Support: ${support}`);
+
+            } catch (e) {
+                console.error('Error fetching levels:', e);
+                document.getElementById('status').textContent = 'Error - retrying...';
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+                scheduleNextUpdate();
+            }
+        }
+
+        function scheduleNextUpdate() {
+            nextUpdateTime = new Date(Date.now() + UPDATE_INTERVAL_MS);
+            updateNextTime();
+        }
+
+        function updateNextTime() {
+            if (nextUpdateTime) {
+                const diff = Math.max(0, Math.floor((nextUpdateTime - Date.now()) / 1000));
+                const mins = Math.floor(diff / 60);
+                const secs = diff % 60;
+                document.getElementById('stat-next').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // CHART
+        // ═══════════════════════════════════════════════════════════════════════════════
+
         function initChart() {
             const container = document.getElementById('chart');
-            
+
             chart = LightweightCharts.createChart(container, {
-                layout: {
-                    background: { type: 'solid', color: '#131722' },
-                    textColor: '#d1d4dc',
-                },
-                grid: {
-                    vertLines: { color: '#1e222d' },
-                    horzLines: { color: '#1e222d' },
-                },
+                layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
+                grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
                 rightPriceScale: { borderColor: '#363a45' },
-                timeScale: { 
-                    borderColor: '#363a45',
-                    timeVisible: true,
-                },
+                timeScale: { borderColor: '#363a45', timeVisible: true },
                 crosshair: { mode: 1 },
             });
-            
-            // Candlestick series
+
             candleSeries = chart.addCandlestickSeries({
-                upColor: '#26a69a',
-                downColor: '#ef5350',
-                borderUpColor: '#26a69a',
-                borderDownColor: '#ef5350',
-                wickUpColor: '#26a69a',
-                wickDownColor: '#ef5350',
+                upColor: '#26a69a', downColor: '#ef5350',
+                borderUpColor: '#26a69a', borderDownColor: '#ef5350',
+                wickUpColor: '#26a69a', wickDownColor: '#ef5350',
             });
-            
-            // Dynamic line series (like moving averages)
-            rSeries = chart.addLineSeries({
-                color: '#00ff00',
-                lineWidth: 2,
-                title: 'R',
-                priceLineVisible: true,
-                lastValueVisible: true,
-            });
-            
-            sSeries = chart.addLineSeries({
-                color: '#ff0000',
-                lineWidth: 2,
-                title: 'S',
-                priceLineVisible: true,
-                lastValueVisible: true,
-            });
-            
-            bgSeries = chart.addLineSeries({
-                color: '#00bcd4',
-                lineWidth: 1,
-                lineStyle: 2, // Dashed
-                title: 'BG',
-                priceLineVisible: true,
-                lastValueVisible: true,
-            });
-            
-            sgSeries = chart.addLineSeries({
-                color: '#ff9800',
-                lineWidth: 1,
-                lineStyle: 2,
-                title: 'SG',
-                priceLineVisible: true,
-                lastValueVisible: true,
-            });
-            
+
+            rSeries = chart.addLineSeries({ color: '#00ff00', lineWidth: 2, title: 'R', priceLineVisible: true, lastValueVisible: true });
+            sSeries = chart.addLineSeries({ color: '#ff0000', lineWidth: 2, title: 'S', priceLineVisible: true, lastValueVisible: true });
+
             new ResizeObserver(() => {
                 chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
             }).observe(container);
         }
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // UPDATE DYNAMIC LINE SERIES
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
-        function updateLineSeries() {
-            // Show/hide based on toggles
-            const showR = document.getElementById('show-r').checked;
-            const showS = document.getElementById('show-s').checked;
-            const showBG = document.getElementById('show-bg').checked;
-            const showSG = document.getElementById('show-sg').checked;
-            
-            rSeries.applyOptions({ visible: showR });
-            sSeries.applyOptions({ visible: showS });
-            bgSeries.applyOptions({ visible: showBG });
-            sgSeries.applyOptions({ visible: showSG });
-            
-            // Update data
-            if (levelHistory.r.length > 0) rSeries.setData(levelHistory.r);
-            if (levelHistory.s.length > 0) sSeries.setData(levelHistory.s);
-            if (levelHistory.bg.length > 0) bgSeries.setData(levelHistory.bg);
-            if (levelHistory.sg.length > 0) sgSeries.setData(levelHistory.sg);
-        }
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // FETCH CANDLES
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
+
+        let chartData = [];
+
         async function fetchCandles() {
             const interval = timeframe === 'D' ? '1d' : timeframe + 'm';
             const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=500`);
             const data = await res.json();
-            
-            const candles = data.map(d => ({
+
+            chartData = data.map(d => ({
                 time: d[0] / 1000,
                 open: parseFloat(d[1]),
                 high: parseFloat(d[2]),
                 low: parseFloat(d[3]),
                 close: parseFloat(d[4]),
             }));
-            
-            candleSeries.setData(candles);
-            
-            // Initialize level history with current levels for all candles
-            // This creates a "step" pattern until we get real historical data
-            if (currentLevels.r > 0) {
-                initializeLevelHistory(candles);
-            }
-            
+
+            candleSeries.setData(chartData);
             chart.timeScale().fitContent();
+
+            if (currentLevels.r > 0) updateDynamicLines();
         }
-        
-        function initializeLevelHistory(candles) {
-            // For now, fill with current levels (will become dynamic as we fetch new data)
-            const lastCandles = candles.slice(-100); // Use last 100 candles
-            
-            levelHistory.r = lastCandles.map(c => ({ time: c.time, value: currentLevels.r }));
-            levelHistory.s = lastCandles.map(c => ({ time: c.time, value: currentLevels.s }));
-            levelHistory.bg = lastCandles.map(c => ({ time: c.time, value: currentLevels.bg }));
-            levelHistory.sg = lastCandles.map(c => ({ time: c.time, value: currentLevels.sg }));
-            
-            updateLineSeries();
+
+        function updateDynamicLines() {
+            if (chartData.length === 0 || currentLevels.r === 0) return;
+
+            // Create dynamic line data for the visible candles
+            const rData = chartData.map(c => ({ time: c.time, value: currentLevels.r }));
+            const sData = chartData.map(c => ({ time: c.time, value: currentLevels.s }));
+
+            rSeries.setData(rData);
+            sSeries.setData(sData);
         }
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // WEBSOCKET FOR LIVE CANDLES
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
+
         function connectWS() {
             if (ws) ws.close();
-            
+
             const interval = timeframe === 'D' ? '1d' : timeframe + 'm';
             ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${interval}`);
-            
+
             ws.onmessage = (e) => {
                 const { k } = JSON.parse(e.data);
                 currentPrice = parseFloat(k.c);
                 const candleTime = k.t / 1000;
-                
+
                 candleSeries.update({
                     time: candleTime,
                     open: parseFloat(k.o),
@@ -655,110 +736,32 @@
                     low: parseFloat(k.l),
                     close: parseFloat(k.c),
                 });
-                
-                // Update dynamic lines with current candle time
+
                 if (currentLevels.r > 0) {
                     rSeries.update({ time: candleTime, value: currentLevels.r });
                     sSeries.update({ time: candleTime, value: currentLevels.s });
-                    bgSeries.update({ time: candleTime, value: currentLevels.bg });
-                    sgSeries.update({ time: candleTime, value: currentLevels.sg });
                 }
-                
+
                 updateUI();
             };
-            
-            ws.onopen = () => document.getElementById('status').textContent = 'Live';
-            ws.onerror = () => document.getElementById('status').textContent = 'Reconnecting...';
+
+            ws.onopen = () => {
+                if (currentLevels.r > 0) document.getElementById('status').textContent = 'Live';
+            };
         }
-        
+
         // ═══════════════════════════════════════════════════════════════════════════════
-        // FETCH LEVELS FROM HISTORICAL DATA
+        // UI UPDATES
         // ═══════════════════════════════════════════════════════════════════════════════
-        
-        async function fetchLevels() {
-            try {
-                const res = await fetch('https://raw.githubusercontent.com/mabkkhome-lgtm/deribit-options-data/main/data/btc_levels.csv?t=' + Date.now());
-                const text = await res.text();
-                const lines = text.trim().split('\n');
-                
-                if (lines.length > 1) {
-                    // Parse ALL historical data to build dynamic lines
-                    levelHistory = { r: [], s: [], bg: [], sg: [] };
-                    
-                    for (let i = 1; i < lines.length; i++) {
-                        const parts = lines[i].split(',');
-                        if (parts.length >= 3) {
-                            const dateStr = parts[0].trim();
-                            const r = parseFloat(parts[1]);
-                            const s = parseFloat(parts[2]);
-                            const bg = parts.length >= 4 ? parseFloat(parts[3]) : r;
-                            const sg = parts.length >= 5 ? parseFloat(parts[4]) : s;
-                            
-                            // Parse date (dd/mm/yyyy format)
-                            const dateParts = dateStr.split('/');
-                            if (dateParts.length === 3) {
-                                const day = parseInt(dateParts[0]);
-                                const month = parseInt(dateParts[1]) - 1;
-                                const year = parseInt(dateParts[2]);
-                                const timestamp = new Date(year, month, day).getTime() / 1000;
-                                
-                                levelHistory.r.push({ time: timestamp, value: r });
-                                levelHistory.s.push({ time: timestamp, value: s });
-                                levelHistory.bg.push({ time: timestamp, value: bg });
-                                levelHistory.sg.push({ time: timestamp, value: sg });
-                            }
-                        }
-                    }
-                    
-                    // Sort by time
-                    ['r', 's', 'bg', 'sg'].forEach(key => {
-                        levelHistory[key].sort((a, b) => a.time - b.time);
-                    });
-                    
-                    // Get latest values
-                    const lastLine = lines[lines.length - 1].split(',');
-                    const newR = parseFloat(lastLine[1]);
-                    const newS = parseFloat(lastLine[2]);
-                    const newBG = lastLine.length >= 4 ? parseFloat(lastLine[3]) : newR;
-                    const newSG = lastLine.length >= 5 ? parseFloat(lastLine[4]) : newS;
-                    
-                    // Track changes
-                    if (currentLevels.r > 0 && (newR !== currentLevels.r || newS !== currentLevels.s)) {
-                        intradayHistory.unshift({
-                            time: new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'}),
-                            r: newR,
-                            s: newS
-                        });
-                        if (intradayHistory.length > 20) intradayHistory.pop();
-                        updateHistory();
-                    }
-                    
-                    currentLevels = { r: newR, s: newS, bg: newBG, sg: newSG };
-                    
-                    // Update line series
-                    updateLineSeries();
-                    updateUI();
-                    updateStats();
-                }
-            } catch (e) {
-                console.error('Error fetching levels:', e);
-            }
-        }
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // UPDATE UI
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
+
         function updateUI() {
-            const fmt = (n) => '$' + n.toLocaleString('en-US', {maximumFractionDigits: 0});
-            
+            const fmt = (n) => '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+
             document.getElementById('price').textContent = fmt(currentPrice);
             document.getElementById('c-val').textContent = fmt(currentPrice);
             document.getElementById('r-val').textContent = fmt(currentLevels.r);
             document.getElementById('s-val').textContent = fmt(currentLevels.s);
-            document.getElementById('bg-val').textContent = fmt(currentLevels.bg);
-            document.getElementById('sg-val').textContent = fmt(currentLevels.sg);
-            
+
             if (currentLevels.r > currentLevels.s && currentPrice > 0) {
                 const range = currentLevels.r - currentLevels.s;
                 const pct = ((currentPrice - currentLevels.s) / range) * 100;
@@ -767,20 +770,20 @@
                 document.getElementById('pct').textContent = pct.toFixed(1);
             }
         }
-        
+
         function updateStats() {
             const r = currentLevels.r;
             const s = currentLevels.s;
             const range = r - s;
-            
+
             document.getElementById('stat-range').textContent = '$' + range.toLocaleString();
-            
+
             if (currentPrice > 0 && r > 0 && s > 0) {
                 const distR = ((r - currentPrice) / currentPrice * 100).toFixed(2);
                 const distS = ((currentPrice - s) / currentPrice * 100).toFixed(2);
                 document.getElementById('stat-dist-r').textContent = distR + '%';
                 document.getElementById('stat-dist-s').textContent = distS + '%';
-                
+
                 const pct = ((currentPrice - s) / range) * 100;
                 let posText = '⚪ Mid';
                 if (pct > 66) posText = '🔴 Near R';
@@ -788,56 +791,51 @@
                 document.getElementById('stat-pos').textContent = posText + ' ' + pct.toFixed(1) + '%';
             }
         }
-        
+
         function updateHistory() {
             const container = document.getElementById('history-list');
-            if (intradayHistory.length === 0) {
-                container.innerHTML = '<div class="history-item"><span class="history-time">No changes yet</span></div>';
+            if (levelHistory.length === 0) {
+                container.innerHTML = '<div class="history-item"><span class="history-time">No changes</span></div>';
                 return;
             }
-            
-            container.innerHTML = intradayHistory.map(h => `
+
+            container.innerHTML = levelHistory.map(h => `
                 <div class="history-item">
                     <span class="history-time">${h.time}</span>
-                    <span class="history-r">R: ${(h.r/1000).toFixed(1)}K</span>
-                    <span class="history-s">S: ${(h.s/1000).toFixed(1)}K</span>
+                    <span class="history-r">R: $${(h.r / 1000).toFixed(1)}K</span>
+                    <span class="history-s">S: $${(h.s / 1000).toFixed(1)}K</span>
                 </div>
             `).join('');
         }
-        
+
         // ═══════════════════════════════════════════════════════════════════════════════
         // EVENT LISTENERS
         // ═══════════════════════════════════════════════════════════════════════════════
-        
+
         document.querySelectorAll('[data-tf]').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('[data-tf]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 timeframe = btn.dataset.tf;
-                fetchCandles().then(() => {
-                    updateLineSeries();
-                    connectWS();
-                });
+                fetchCandles().then(connectWS);
             });
         });
-        
-        ['show-r', 'show-s', 'show-bg', 'show-sg'].forEach(id => {
-            document.getElementById(id).addEventListener('change', updateLineSeries);
-        });
-        
+
+        document.getElementById('btn-refresh').addEventListener('click', fetchAndCalculateLevels);
+
         // ═══════════════════════════════════════════════════════════════════════════════
         // INIT
         // ═══════════════════════════════════════════════════════════════════════════════
-        
+
         initChart();
-        fetchLevels().then(() => {
-            fetchCandles().then(() => {
-                connectWS();
-            });
+        fetchCandles().then(() => {
+            connectWS();
+            fetchAndCalculateLevels();
         });
-        
-        // Fetch levels every 30 seconds
-        setInterval(fetchLevels, 30000);
+
+        // Auto-update every minute
+        setInterval(fetchAndCalculateLevels, UPDATE_INTERVAL_MS);
+        setInterval(updateNextTime, 1000);
     </script>
 </body>
 
