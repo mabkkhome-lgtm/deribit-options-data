@@ -1,90 +1,207 @@
 // ==UserScript==
-// @name         TradingView Options Levels Auto-Update
+// @name         Options Levels Auto-Update
 // @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  Automatically updates Options Levels Tracker indicator with latest data from GitHub
+// @version      2.0
+// @description  Automatically updates the Options Levels Tracker indicator with latest resistance/support values
 // @author       Thales Bot
 // @match        https://www.tradingview.com/*
 // @match        https://tradingview.com/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_notification
+// @grant        GM_setValue
+// @grant        GM_getValue
 // @connect      raw.githubusercontent.com
-// @updateURL    https://raw.githubusercontent.com/mabkkhome-lgtm/deribit-options-data/main/tradingview_autoupdate.user.js
-// @downloadURL  https://raw.githubusercontent.com/mabkkhome-lgtm/deribit-options-data/main/tradingview_autoupdate.user.js
+// @run-at       document-idle
 // ==/UserScript==
 
 (function () {
     'use strict';
 
-    // Configuration
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // CONFIGURATION
+    // ═══════════════════════════════════════════════════════════════════════════════
+
     const CONFIG = {
-        csvUrl: 'https://raw.githubusercontent.com/mabkkhome-lgtm/deribit-options-data/main/data/btc_levels.csv',
-        updateIntervalMs: 15 * 60 * 1000, // 15 minutes
-        indicatorName: 'Options Levels Tracker',
-        showNotifications: true,
-        autoClickApply: true
+        dataUrl: 'https://raw.githubusercontent.com/mabkkhome-lgtm/deribit-options-data/main/data/btc_levels.csv',
+        updateIntervalMs: 5 * 60 * 1000, // Check every 5 minutes
+        indicatorName: 'Options Levels',
+        showNotifications: true
     };
 
-    let lastData = '';
-    let isUpdating = false;
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // STATE
+    // ═══════════════════════════════════════════════════════════════════════════════
 
-    // Create status indicator
-    function createStatusIndicator() {
-        const indicator = document.createElement('div');
-        indicator.id = 'options-levels-status';
-        indicator.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(26, 26, 46, 0.95);
-            color: #fff;
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-size: 12px;
-            z-index: 9999;
-            border: 1px solid #333;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        `;
-        indicator.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <span id="status-dot" style="width: 8px; height: 8px; background: #4caf50; border-radius: 50%;"></span>
-                <span id="status-text">Options Levels: Active</span>
+    let state = {
+        resistance: 0,
+        support: 0,
+        lastUpdate: null,
+        isUpdating: false
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // UI - Status Panel
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    function createStatusPanel() {
+        // Remove existing panel if any
+        const existing = document.getElementById('options-levels-panel');
+        if (existing) existing.remove();
+
+        const panel = document.createElement('div');
+        panel.id = 'options-levels-panel';
+        panel.innerHTML = `
+            <div class="ol-header">
+                <span class="ol-title">📊 Options Levels</span>
+                <button class="ol-refresh" title="Refresh Now">↻</button>
             </div>
-            <div id="status-details" style="font-size: 10px; color: #888; margin-top: 4px;"></div>
+            <div class="ol-content">
+                <div class="ol-row">
+                    <span class="ol-label">Resistance:</span>
+                    <span class="ol-value ol-green" id="ol-resistance">--</span>
+                </div>
+                <div class="ol-row">
+                    <span class="ol-label">Support:</span>
+                    <span class="ol-value ol-red" id="ol-support">--</span>
+                </div>
+                <div class="ol-status" id="ol-status">Loading...</div>
+            </div>
         `;
-        indicator.onclick = () => fetchAndUpdate();
-        document.body.appendChild(indicator);
-        return indicator;
+
+        // Styles
+        const style = document.createElement('style');
+        style.textContent = `
+            #options-levels-panel {
+                position: fixed;
+                bottom: 80px;
+                right: 20px;
+                background: rgba(30, 34, 45, 0.95);
+                border: 1px solid #363a45;
+                border-radius: 8px;
+                padding: 0;
+                z-index: 9999;
+                font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', sans-serif;
+                font-size: 13px;
+                color: #d1d4dc;
+                min-width: 180px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                user-select: none;
+            }
+            .ol-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 8px 12px;
+                background: rgba(41, 98, 255, 0.15);
+                border-radius: 8px 8px 0 0;
+                border-bottom: 1px solid #363a45;
+            }
+            .ol-title {
+                font-weight: 600;
+                font-size: 12px;
+            }
+            .ol-refresh {
+                background: none;
+                border: none;
+                color: #787b86;
+                cursor: pointer;
+                font-size: 16px;
+                padding: 2px 6px;
+                border-radius: 3px;
+            }
+            .ol-refresh:hover {
+                background: rgba(255,255,255,0.1);
+                color: #d1d4dc;
+            }
+            .ol-content {
+                padding: 10px 12px;
+            }
+            .ol-row {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 6px;
+            }
+            .ol-label {
+                color: #787b86;
+            }
+            .ol-value {
+                font-weight: 600;
+                font-family: 'Monaco', 'Menlo', monospace;
+            }
+            .ol-green { color: #26a69a; }
+            .ol-red { color: #ef5350; }
+            .ol-status {
+                font-size: 10px;
+                color: #787b86;
+                text-align: center;
+                margin-top: 6px;
+                padding-top: 6px;
+                border-top: 1px solid #363a45;
+            }
+            .ol-status.success { color: #26a69a; }
+            .ol-status.error { color: #ef5350; }
+        `;
+        document.head.appendChild(style);
+        document.body.appendChild(panel);
+
+        // Refresh button handler
+        panel.querySelector('.ol-refresh').addEventListener('click', () => {
+            fetchAndUpdate();
+        });
+
+        return panel;
     }
 
-    // Update status display
-    function updateStatus(text, isError = false) {
-        const dot = document.getElementById('status-dot');
-        const statusText = document.getElementById('status-text');
-        const details = document.getElementById('status-details');
+    function updateStatusPanel() {
+        const resEl = document.getElementById('ol-resistance');
+        const supEl = document.getElementById('ol-support');
+        const statusEl = document.getElementById('ol-status');
 
-        if (dot) dot.style.background = isError ? '#f44336' : '#4caf50';
-        if (statusText) statusText.textContent = text;
-        if (details) details.textContent = `Last update: ${new Date().toLocaleTimeString()}`;
+        if (resEl) resEl.textContent = '$' + state.resistance.toLocaleString();
+        if (supEl) supEl.textContent = '$' + state.support.toLocaleString();
+        if (statusEl) {
+            statusEl.textContent = 'Updated: ' + new Date().toLocaleTimeString();
+            statusEl.className = 'ol-status success';
+        }
     }
 
-    // Fetch CSV data from GitHub
+    function setStatus(text, isError = false) {
+        const statusEl = document.getElementById('ol-status');
+        if (statusEl) {
+            statusEl.textContent = text;
+            statusEl.className = 'ol-status ' + (isError ? 'error' : '');
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // DATA FETCHING
+    // ═══════════════════════════════════════════════════════════════════════════════
+
     function fetchData() {
         return new Promise((resolve, reject) => {
             GM_xmlhttpRequest({
                 method: 'GET',
-                url: CONFIG.csvUrl + '?t=' + Date.now(), // Cache bust
+                url: CONFIG.dataUrl + '?t=' + Date.now(),
                 onload: function (response) {
                     if (response.status === 200) {
-                        // Remove header line and get data
                         const lines = response.responseText.trim().split('\n');
-                        const dataLines = lines.slice(1).join('\n'); // Skip header
-                        resolve(dataLines);
+                        if (lines.length > 1) {
+                            const lastLine = lines[lines.length - 1];
+                            const parts = lastLine.split(',');
+                            if (parts.length >= 3) {
+                                resolve({
+                                    date: parts[0],
+                                    resistance: parseFloat(parts[1]),
+                                    support: parseFloat(parts[2])
+                                });
+                            } else {
+                                reject(new Error('Invalid data format'));
+                            }
+                        } else {
+                            reject(new Error('No data'));
+                        }
                     } else {
-                        reject(new Error('Failed to fetch: ' + response.status));
+                        reject(new Error('HTTP ' + response.status));
                     }
                 },
                 onerror: function (error) {
@@ -94,200 +211,129 @@
         });
     }
 
-    // Find and open indicator settings
-    function findIndicatorSettings() {
-        // Look for the indicator in the legend
-        const legends = document.querySelectorAll('[data-name="legend-source-item"]');
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // INDICATOR UPDATE
+    // ═══════════════════════════════════════════════════════════════════════════════
 
-        for (const legend of legends) {
-            const titleSpan = legend.querySelector('[class*="title"]');
-            if (titleSpan && titleSpan.textContent.includes(CONFIG.indicatorName)) {
-                // Found our indicator - click settings icon
-                const settingsBtn = legend.querySelector('[data-name="legend-settings-action"]');
+    async function updateIndicatorSettings(resistance, support) {
+        // Find and click on the indicator settings
+        const legendItems = document.querySelectorAll('[data-name="legend-source-item"]');
+
+        for (const item of legendItems) {
+            const title = item.querySelector('[class*="title"]');
+            if (title && title.textContent.toLowerCase().includes('options')) {
+                // Found our indicator - click settings
+                const settingsBtn = item.querySelector('[data-name="legend-settings-action"]');
                 if (settingsBtn) {
                     settingsBtn.click();
-                    return true;
-                }
-            }
-        }
 
-        // Alternative: Look in the indicator list
-        const indicatorItems = document.querySelectorAll('[class*="legendSourceItem"]');
-        for (const item of indicatorItems) {
-            if (item.textContent.includes(CONFIG.indicatorName)) {
-                const settingsBtn = item.querySelector('[class*="button"]');
-                if (settingsBtn) {
-                    settingsBtn.click();
-                    return true;
-                }
-            }
-        }
+                    // Wait for dialog
+                    await sleep(600);
 
-        return false;
-    }
+                    // Find and update input fields
+                    const dialog = document.querySelector('[data-dialog-name="indicator-properties-dialog"]');
+                    if (dialog) {
+                        const inputs = dialog.querySelectorAll('input[type="text"], input[type="number"]');
 
-    // Update the text area input in the indicator settings dialog
-    async function updateIndicatorInput(data) {
-        // Wait for dialog to open
-        await sleep(500);
+                        for (const input of inputs) {
+                            const row = input.closest('[class*="cell"]') || input.parentElement;
+                            const label = row ? row.textContent.toLowerCase() : '';
 
-        // Find the settings dialog
-        const dialogs = document.querySelectorAll('[data-dialog-name="indicator-properties-dialog"]');
-        let dialog = dialogs[dialogs.length - 1];
+                            if (label.includes('resistance') || label.includes('high')) {
+                                setInputValue(input, resistance);
+                            } else if (label.includes('support') || label.includes('low')) {
+                                setInputValue(input, support);
+                            }
+                        }
 
-        if (!dialog) {
-            // Try alternative selector
-            dialog = document.querySelector('[class*="dialog-"]');
-        }
-
-        if (!dialog) {
-            console.log('Options Levels: Dialog not found');
-            return false;
-        }
-
-        // Find the textarea for data input
-        const textareas = dialog.querySelectorAll('textarea');
-        let targetTextarea = null;
-
-        for (const ta of textareas) {
-            // Check if this is our data textarea (by placeholder or nearby label)
-            const parent = ta.closest('[class*="cell"]') || ta.parentElement;
-            if (parent && (
-                parent.textContent.includes('PASTE DATA') ||
-                parent.textContent.includes('data') ||
-                ta.placeholder.includes('data')
-            )) {
-                targetTextarea = ta;
-                break;
-            }
-        }
-
-        // If no labeled textarea found, just use the first one (most likely to be data input)
-        if (!targetTextarea && textareas.length > 0) {
-            targetTextarea = textareas[0];
-        }
-
-        if (targetTextarea) {
-            // Clear and set new value
-            targetTextarea.value = data;
-            targetTextarea.dispatchEvent(new Event('input', { bubbles: true }));
-            targetTextarea.dispatchEvent(new Event('change', { bubbles: true }));
-
-            console.log('Options Levels: Data updated in textarea');
-
-            // Click Apply/OK button if configured
-            if (CONFIG.autoClickApply) {
-                await sleep(300);
-
-                // Find and click the submit/apply button
-                const buttons = dialog.querySelectorAll('button');
-                for (const btn of buttons) {
-                    if (btn.textContent.includes('OK') ||
-                        btn.textContent.includes('Apply') ||
-                        btn.textContent.includes('Defaults')) {
-                        // Skip the "Defaults" button, click OK
-                        if (btn.textContent.includes('OK')) {
-                            btn.click();
-                            console.log('Options Levels: Settings applied');
+                        // Click OK button
+                        await sleep(200);
+                        const okBtn = dialog.querySelector('[data-name="submit-button"]');
+                        if (okBtn) {
+                            okBtn.click();
                             return true;
                         }
                     }
                 }
-
-                // Alternative: submit button
-                const submitBtn = dialog.querySelector('[data-name="submit-button"]');
-                if (submitBtn) {
-                    submitBtn.click();
-                    return true;
-                }
             }
-
-            return true;
         }
 
-        console.log('Options Levels: Textarea not found in dialog');
         return false;
     }
 
-    // Close any open dialog
-    function closeDialog() {
-        const closeBtn = document.querySelector('[data-name="close"]');
-        if (closeBtn) closeBtn.click();
+    function setInputValue(input, value) {
+        input.value = value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    // Utility: sleep
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    // Main fetch and update function
-    async function fetchAndUpdate() {
-        if (isUpdating) return;
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // MAIN UPDATE LOOP
+    // ═══════════════════════════════════════════════════════════════════════════════
 
-        isUpdating = true;
-        updateStatus('Updating...', false);
+    async function fetchAndUpdate() {
+        if (state.isUpdating) return;
+
+        state.isUpdating = true;
+        setStatus('Updating...');
 
         try {
             const data = await fetchData();
 
-            if (data === lastData) {
-                updateStatus('Options Levels: No changes', false);
-                isUpdating = false;
-                return;
-            }
+            // Check if values changed
+            if (data.resistance !== state.resistance || data.support !== state.support) {
+                state.resistance = data.resistance;
+                state.support = data.support;
+                state.lastUpdate = new Date();
 
-            lastData = data;
+                updateStatusPanel();
 
-            // Try to update the indicator
-            const foundIndicator = findIndicatorSettings();
+                // Try to update indicator (optional - may not work if indicator not found)
+                const updated = await updateIndicatorSettings(data.resistance, data.support);
 
-            if (foundIndicator) {
-                const updated = await updateIndicatorInput(data);
-
-                if (updated) {
-                    updateStatus('Options Levels: Updated ✓', false);
-
-                    if (CONFIG.showNotifications) {
-                        GM_notification({
-                            title: 'Options Levels Updated',
-                            text: 'New data loaded: ' + data.split('\n').pop().substring(0, 50),
-                            timeout: 3000
-                        });
-                    }
-                } else {
-                    updateStatus('Update failed - manual paste needed', true);
+                if (CONFIG.showNotifications && updated) {
+                    GM_notification({
+                        title: 'Options Levels Updated',
+                        text: `R: $${data.resistance.toLocaleString()} | S: $${data.support.toLocaleString()}`,
+                        timeout: 3000
+                    });
                 }
+
+                console.log('Options Levels updated:', data);
             } else {
-                updateStatus('Indicator not found on chart', true);
-                console.log('Options Levels: Add the "Options Levels Tracker" indicator to your chart first');
+                setStatus('No changes');
             }
+
         } catch (error) {
-            console.error('Options Levels Error:', error);
-            updateStatus('Error: ' + error.message, true);
+            console.error('Options Levels error:', error);
+            setStatus('Error: ' + error.message, true);
         }
 
-        isUpdating = false;
+        state.isUpdating = false;
     }
 
-    // Initialize
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // INITIALIZATION
+    // ═══════════════════════════════════════════════════════════════════════════════
+
     function init() {
-        console.log('Options Levels Auto-Update initialized');
+        console.log('Options Levels Auto-Update v2.0 initialized');
 
-        // Wait for page to load
+        // Wait for page to settle
         setTimeout(() => {
-            createStatusIndicator();
-
-            // Initial update
+            createStatusPanel();
             fetchAndUpdate();
 
             // Set up periodic updates
             setInterval(fetchAndUpdate, CONFIG.updateIntervalMs);
-
-            console.log(`Options Levels: Will update every ${CONFIG.updateIntervalMs / 60000} minutes`);
         }, 3000);
     }
 
-    // Start when DOM is ready
+    // Start
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
