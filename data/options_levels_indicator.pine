@@ -1,109 +1,344 @@
-// Options Levels Tracker - Auto-Generated with 128 days of historical data
-// Last Updated: 2025-12-19 11:27 UTC
-// To get the latest version: https://github.com/mabkkhome-lgtm/deribit-options-data/blob/main/data/options_levels_indicator.pine
-
 //@version=5
 indicator("Options Levels Tracker", overlay=true, max_lines_count=500, max_labels_count=50, max_boxes_count=50)
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// EMBEDDED HISTORICAL DATA (128 days)
+// OPTIONS LEVELS TRACKER
+// Auto-Generated with 90 days of historical data
+// Last Updated: 2025-12-19 11:46 UTC
+// https://github.com/mabkkhome-lgtm/deribit-options-data
 // ═══════════════════════════════════════════════════════════════════════════════
 
-var array<string> DATA_DATES = array.from("10/08/2025", "11/08/2025", "12/08/2025", "13/08/2025", "15/08/2025", "16/08/2025", "17/08/2025", "18/08/2025", "19/08/2025", "20/08/2025", "21/08/2025", "22/08/2025", "23/08/2025", "24/08/2025", "25/08/2025", "26/08/2025", "27/08/2025", "28/08/2025", "29/08/2025", "30/08/2025", "31/08/2025", "01/09/2025", "02/09/2025", "03/09/2025", "04/09/2025", "05/09/2025", "06/09/2025", "07/09/2025", "08/09/2025", "09/09/2025", "10/09/2025", "11/09/2025", "12/09/2025", "13/09/2025", "14/09/2025", "15/09/2025", "16/09/2025", "17/09/2025", "18/09/2025", "19/09/2025", "20/09/2025", "21/09/2025", "22/09/2025", "23/09/2025", "24/09/2025", "25/09/2025", "26/09/2025", "27/09/2025", "29/09/2025", "30/09/2025", "01/10/2025", "02/10/2025", "03/10/2025", "04/10/2025", "05/10/2025", "06/10/2025", "07/10/2025", "08/10/2025", "09/10/2025", "10/10/2025", "11/10/2025", "12/10/2025", "13/10/2025", "14/10/2025", "15/10/2025", "16/10/2025", "17/10/2025", "18/10/2025", "19/10/2025", "20/10/2025", "21/10/2025", "22/10/2025", "23/10/2025", "24/10/2025", "25/10/2025", "26/10/2025", "27/10/2025", "28/10/2025", "29/10/2025", "30/10/2025", "31/10/2025", "01/11/2025", "02/11/2025", "03/11/2025", "04/11/2025", "05/11/2025", "06/11/2025", "07/11/2025", "08/11/2025", "09/11/2025", "10/11/2025", "11/11/2025", "12/11/2025", "13/11/2025", "14/11/2025", "15/11/2025", "16/11/2025", "17/11/2025", "18/11/2025", "19/11/2025", "20/11/2025", "21/11/2025", "23/11/2025", "24/11/2025", "25/11/2025", "26/11/2025", "27/11/2025", "29/11/2025", "30/11/2025", "01/12/2025", "02/12/2025", "03/12/2025", "04/12/2025", "05/12/2025", "06/12/2025", "08/12/2025", "09/12/2025", "10/12/2025", "11/12/2025", "12/12/2025", "13/12/2025", "14/12/2025", "15/12/2025", "16/12/2025", "17/12/2025", "18/12/2025", "19/12/2025", "20/12/2025")
-var array<float> DATA_HIGHS = array.from(117200, 118700, 123750, 123350, 118720, 119800, 119103, 116000, 117400, 118250, 115200, 117400, 115650, 116660, 115600, 113800, 112890, 113166, 114150, 112150, 110345, 110476, 110840, 111444, 112362, 112240, 114000, 111689, 112900, 113400, 113500, 114800, 117800, 116165, 117254, 116300, 116674, 116342, 118419, 117760, 118190, 116570, 117240, 115150, 114080, 117900, 113480, 110900, 110050, 122000, 115000, 116870, 119400, 121500, 123180, 125890, 125450, 126000, 124200, 124100, 123400, 115000, 118730, 118900, 115500, 114330, 115450, 110900, 108320, 108990, 112700, 111380, 110720, 117610, 113300, 112450, 114046, 116450, 116830, 116800, 117630, 112940, 111049, 112560, 109960, 107380, 105000, 106000, 103500, 103394, 103680, 107621, 107160, 105570, 106800, 102900, 96930, 98110, 97670, 95640, 94650, 96850, 86500, 89025, 89130, 90500, 89300, 93450, 91800, 92740, 89400, 90050, 94840, 95200, 93620, 91375, 93600, 92300, 95280, 92100, 94290, 91390, 92020, 90000, 88160, 89170, 90320, 89329)
-var array<float> DATA_LOWS = array.from(113800, 113650, 118500, 118720, 118500, 116800, 116000, 115760, 113400, 112800, 111220, 112600, 109660, 114640, 111800, 109700, 108300, 109600, 110250, 108724, 107500, 107500, 106830, 108160, 109500, 108900, 108950, 109880, 109300, 111430, 108900, 112010, 111010, 110600, 114923, 111700, 113300, 113200, 107718, 109970, 115800, 114843, 114270, 111000, 110900, 111650, 109480, 108130, 108525, 111686, 110365, 113430, 114400, 117400, 121214, 121155, 119520, 122162, 120227, 119300, 117940, 110177, 113250, 113000, 109500, 109817, 109550, 103500, 105430, 104700, 106600, 105370, 105400, 108920, 107930, 110330, 110633, 107430, 112620, 108900, 107950, 106600, 108025, 108838, 105700, 102080, 98870, 99680, 98500, 101666, 99460, 102355, 102500, 101300, 101500, 95450, 94430, 93679, 92119, 88530, 89000, 90063, 83000, 83716, 83860, 85300, 84900, 89525, 89860, 89600, 84800, 84700, 88740, 90100, 89820, 87360, 89500, 88470, 88980, 88500, 90030, 89540, 87920, 86600, 83800, 85920, 84480, 84307)
+// Settings
+string showOn = input.string("BTCUSDT", "Chart Symbol", group="⚙️ Settings")
+color topColor = input.color(#00ff00, "Resistance Color", group="⚙️ Settings")
+color lowColor = input.color(#ff0000, "Support Color", group="⚙️ Settings")
+color zoneColor = input.color(color.new(#2962ff, 90), "Zone Fill", group="⚙️ Settings")
+int lineThickness = input.int(2, "Line Width", minval=1, maxval=5, group="⚙️ Settings")
+bool showZones = input.bool(true, "Show Zones", group="⚙️ Settings")
+bool showLabels = input.bool(true, "Show Labels", group="⚙️ Settings")
+bool showStats = input.bool(true, "Show Stats Panel", group="⚙️ Settings")
+string tablePosition = input.string("Bottom Right", "Table Position", options=["Top Right", "Top Left", "Bottom Right", "Bottom Left"], group="⚙️ Settings")
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// OPTIONAL: Override today's data (for real-time updates)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-bool useOverride = input.bool(false, "Use Manual Override for Today", group="📊 Manual Override")
+// Manual Override (for real-time updates)
+bool useOverride = input.bool(false, "Use Manual Override", group="📊 Manual Override")
 float overrideHigh = input.float(89329, "Today's Resistance", group="📊 Manual Override")
 float overrideLow = input.float(84307, "Today's Support", group="📊 Manual Override")
-string overrideDate = input.string("20/12/2025", "Today's Date (dd/mm/yyyy)", group="📊 Manual Override")
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ANALYSIS PERIODS
+// EMBEDDED DATA - 90 days
 // ═══════════════════════════════════════════════════════════════════════════════
 
-int shortPeriod = input.int(7, "Short Period (days)", minval=1, maxval=30, group="📈 Analysis Periods")
-int longPeriod = input.int(30, "Long Period (days)", minval=7, maxval=90, group="📈 Analysis Periods")
+var array<string> dates = array.new_string()
+var array<float> highs = array.new_float()
+var array<float> lows = array.new_float()
+var bool dataLoaded = false
+
+if not dataLoaded
+    array.push(dates, "18/09/2025")
+    array.push(dates, "19/09/2025")
+    array.push(dates, "20/09/2025")
+    array.push(dates, "21/09/2025")
+    array.push(dates, "22/09/2025")
+    array.push(dates, "23/09/2025")
+    array.push(dates, "24/09/2025")
+    array.push(dates, "25/09/2025")
+    array.push(dates, "26/09/2025")
+    array.push(dates, "27/09/2025")
+    array.push(dates, "29/09/2025")
+    array.push(dates, "30/09/2025")
+    array.push(dates, "01/10/2025")
+    array.push(dates, "02/10/2025")
+    array.push(dates, "03/10/2025")
+    array.push(dates, "04/10/2025")
+    array.push(dates, "05/10/2025")
+    array.push(dates, "06/10/2025")
+    array.push(dates, "07/10/2025")
+    array.push(dates, "08/10/2025")
+    array.push(dates, "09/10/2025")
+    array.push(dates, "10/10/2025")
+    array.push(dates, "11/10/2025")
+    array.push(dates, "12/10/2025")
+    array.push(dates, "13/10/2025")
+    array.push(dates, "14/10/2025")
+    array.push(dates, "15/10/2025")
+    array.push(dates, "16/10/2025")
+    array.push(dates, "17/10/2025")
+    array.push(dates, "18/10/2025")
+    array.push(dates, "19/10/2025")
+    array.push(dates, "20/10/2025")
+    array.push(dates, "21/10/2025")
+    array.push(dates, "22/10/2025")
+    array.push(dates, "23/10/2025")
+    array.push(dates, "24/10/2025")
+    array.push(dates, "25/10/2025")
+    array.push(dates, "26/10/2025")
+    array.push(dates, "27/10/2025")
+    array.push(dates, "28/10/2025")
+    array.push(dates, "29/10/2025")
+    array.push(dates, "30/10/2025")
+    array.push(dates, "31/10/2025")
+    array.push(dates, "01/11/2025")
+    array.push(dates, "02/11/2025")
+    array.push(dates, "03/11/2025")
+    array.push(dates, "04/11/2025")
+    array.push(dates, "05/11/2025")
+    array.push(dates, "06/11/2025")
+    array.push(dates, "07/11/2025")
+    array.push(dates, "08/11/2025")
+    array.push(dates, "09/11/2025")
+    array.push(dates, "10/11/2025")
+    array.push(dates, "11/11/2025")
+    array.push(dates, "12/11/2025")
+    array.push(dates, "13/11/2025")
+    array.push(dates, "14/11/2025")
+    array.push(dates, "15/11/2025")
+    array.push(dates, "16/11/2025")
+    array.push(dates, "17/11/2025")
+    array.push(dates, "18/11/2025")
+    array.push(dates, "19/11/2025")
+    array.push(dates, "20/11/2025")
+    array.push(dates, "21/11/2025")
+    array.push(dates, "23/11/2025")
+    array.push(dates, "24/11/2025")
+    array.push(dates, "25/11/2025")
+    array.push(dates, "26/11/2025")
+    array.push(dates, "27/11/2025")
+    array.push(dates, "29/11/2025")
+    array.push(dates, "30/11/2025")
+    array.push(dates, "01/12/2025")
+    array.push(dates, "02/12/2025")
+    array.push(dates, "03/12/2025")
+    array.push(dates, "04/12/2025")
+    array.push(dates, "05/12/2025")
+    array.push(dates, "06/12/2025")
+    array.push(dates, "08/12/2025")
+    array.push(dates, "09/12/2025")
+    array.push(dates, "10/12/2025")
+    array.push(dates, "11/12/2025")
+    array.push(dates, "12/12/2025")
+    array.push(dates, "13/12/2025")
+    array.push(dates, "14/12/2025")
+    array.push(dates, "15/12/2025")
+    array.push(dates, "16/12/2025")
+    array.push(dates, "17/12/2025")
+    array.push(dates, "18/12/2025")
+    array.push(dates, "19/12/2025")
+    array.push(dates, "20/12/2025")
+    array.push(highs, 118419.0)
+    array.push(highs, 117760.0)
+    array.push(highs, 118190.0)
+    array.push(highs, 116570.0)
+    array.push(highs, 117240.0)
+    array.push(highs, 115150.0)
+    array.push(highs, 114080.0)
+    array.push(highs, 117900.0)
+    array.push(highs, 113480.0)
+    array.push(highs, 110900.0)
+    array.push(highs, 110050.0)
+    array.push(highs, 122000.0)
+    array.push(highs, 115000.0)
+    array.push(highs, 116870.0)
+    array.push(highs, 119400.0)
+    array.push(highs, 121500.0)
+    array.push(highs, 123180.0)
+    array.push(highs, 125890.0)
+    array.push(highs, 125450.0)
+    array.push(highs, 126000.0)
+    array.push(highs, 124200.0)
+    array.push(highs, 124100.0)
+    array.push(highs, 123400.0)
+    array.push(highs, 115000.0)
+    array.push(highs, 118730.0)
+    array.push(highs, 118900.0)
+    array.push(highs, 115500.0)
+    array.push(highs, 114330.0)
+    array.push(highs, 115450.0)
+    array.push(highs, 110900.0)
+    array.push(highs, 108320.0)
+    array.push(highs, 108990.0)
+    array.push(highs, 112700.0)
+    array.push(highs, 111380.0)
+    array.push(highs, 110720.0)
+    array.push(highs, 117610.0)
+    array.push(highs, 113300.0)
+    array.push(highs, 112450.0)
+    array.push(highs, 114046.0)
+    array.push(highs, 116450.0)
+    array.push(highs, 116830.0)
+    array.push(highs, 116800.0)
+    array.push(highs, 117630.0)
+    array.push(highs, 112940.0)
+    array.push(highs, 111049.0)
+    array.push(highs, 112560.0)
+    array.push(highs, 109960.0)
+    array.push(highs, 107380.0)
+    array.push(highs, 105000.0)
+    array.push(highs, 106000.0)
+    array.push(highs, 103500.0)
+    array.push(highs, 103394.0)
+    array.push(highs, 103680.0)
+    array.push(highs, 107621.0)
+    array.push(highs, 107160.0)
+    array.push(highs, 105570.0)
+    array.push(highs, 106800.0)
+    array.push(highs, 102900.0)
+    array.push(highs, 96930.0)
+    array.push(highs, 98110.0)
+    array.push(highs, 97670.0)
+    array.push(highs, 95640.0)
+    array.push(highs, 94650.0)
+    array.push(highs, 96850.0)
+    array.push(highs, 86500.0)
+    array.push(highs, 89025.0)
+    array.push(highs, 89130.0)
+    array.push(highs, 90500.0)
+    array.push(highs, 89300.0)
+    array.push(highs, 93450.0)
+    array.push(highs, 91800.0)
+    array.push(highs, 92740.0)
+    array.push(highs, 89400.0)
+    array.push(highs, 90050.0)
+    array.push(highs, 94840.0)
+    array.push(highs, 95200.0)
+    array.push(highs, 93620.0)
+    array.push(highs, 91375.0)
+    array.push(highs, 93600.0)
+    array.push(highs, 92300.0)
+    array.push(highs, 95280.0)
+    array.push(highs, 92100.0)
+    array.push(highs, 94290.0)
+    array.push(highs, 91390.0)
+    array.push(highs, 92020.0)
+    array.push(highs, 90000.0)
+    array.push(highs, 88160.0)
+    array.push(highs, 89170.0)
+    array.push(highs, 90320.0)
+    array.push(highs, 89329.0)
+    array.push(lows, 107718.0)
+    array.push(lows, 109970.0)
+    array.push(lows, 115800.0)
+    array.push(lows, 114843.0)
+    array.push(lows, 114270.0)
+    array.push(lows, 111000.0)
+    array.push(lows, 110900.0)
+    array.push(lows, 111650.0)
+    array.push(lows, 109480.0)
+    array.push(lows, 108130.0)
+    array.push(lows, 108525.0)
+    array.push(lows, 111686.0)
+    array.push(lows, 110365.0)
+    array.push(lows, 113430.0)
+    array.push(lows, 114400.0)
+    array.push(lows, 117400.0)
+    array.push(lows, 121214.0)
+    array.push(lows, 121155.0)
+    array.push(lows, 119520.0)
+    array.push(lows, 122162.0)
+    array.push(lows, 120227.0)
+    array.push(lows, 119300.0)
+    array.push(lows, 117940.0)
+    array.push(lows, 110177.0)
+    array.push(lows, 113250.0)
+    array.push(lows, 113000.0)
+    array.push(lows, 109500.0)
+    array.push(lows, 109817.0)
+    array.push(lows, 109550.0)
+    array.push(lows, 103500.0)
+    array.push(lows, 105430.0)
+    array.push(lows, 104700.0)
+    array.push(lows, 106600.0)
+    array.push(lows, 105370.0)
+    array.push(lows, 105400.0)
+    array.push(lows, 108920.0)
+    array.push(lows, 107930.0)
+    array.push(lows, 110330.0)
+    array.push(lows, 110633.0)
+    array.push(lows, 107430.0)
+    array.push(lows, 112620.0)
+    array.push(lows, 108900.0)
+    array.push(lows, 107950.0)
+    array.push(lows, 106600.0)
+    array.push(lows, 108025.0)
+    array.push(lows, 108838.0)
+    array.push(lows, 105700.0)
+    array.push(lows, 102080.0)
+    array.push(lows, 98870.0)
+    array.push(lows, 99680.0)
+    array.push(lows, 98500.0)
+    array.push(lows, 101666.0)
+    array.push(lows, 99460.0)
+    array.push(lows, 102355.0)
+    array.push(lows, 102500.0)
+    array.push(lows, 101300.0)
+    array.push(lows, 101500.0)
+    array.push(lows, 95450.0)
+    array.push(lows, 94430.0)
+    array.push(lows, 93679.0)
+    array.push(lows, 92119.0)
+    array.push(lows, 88530.0)
+    array.push(lows, 89000.0)
+    array.push(lows, 90063.0)
+    array.push(lows, 83000.0)
+    array.push(lows, 83716.0)
+    array.push(lows, 83860.0)
+    array.push(lows, 85300.0)
+    array.push(lows, 84900.0)
+    array.push(lows, 89525.0)
+    array.push(lows, 89860.0)
+    array.push(lows, 89600.0)
+    array.push(lows, 84800.0)
+    array.push(lows, 84700.0)
+    array.push(lows, 88740.0)
+    array.push(lows, 90100.0)
+    array.push(lows, 89820.0)
+    array.push(lows, 87360.0)
+    array.push(lows, 89500.0)
+    array.push(lows, 88470.0)
+    array.push(lows, 88980.0)
+    array.push(lows, 88500.0)
+    array.push(lows, 90030.0)
+    array.push(lows, 89540.0)
+    array.push(lows, 87920.0)
+    array.push(lows, 86600.0)
+    array.push(lows, 83800.0)
+    array.push(lows, 85920.0)
+    array.push(lows, 84480.0)
+    array.push(lows, 84307.0)
+    dataLoaded := true
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SETTINGS
-// ═══════════════════════════════════════════════════════════════════════════════
-
-string showOn = input.string("BTCUSDT", "Chart Symbol", group="⚙️ Settings")
-
-// Visual Styles
-color topColor = input.color(#00ff00, "Resistance", inline="c1", group="⚙️ Settings")
-color lowColor = input.color(#ff0000, "Support", inline="c2", group="⚙️ Settings")
-color zoneColor = input.color(color.new(#2962ff, 90), "Zone Fill", inline="c2", group="⚙️ Settings")
-
-int lineThickness = input.int(2, "Line Width", minval=1, maxval=5, group="⚙️ Settings")
-string lineStyle = input.string("Solid", "Line Style", options=["Solid", "Dashed", "Dotted"], group="⚙️ Settings")
-
-// Features
-bool showLabels = input.bool(true, "Show Labels (Latest Only)", group="⚙️ Settings")
-bool showPrices = input.bool(true, "Show Prices", group="⚙️ Settings")
-bool showZones = input.bool(true, "Support/Resistance Zones", group="⚙️ Settings")
-bool showStats = input.bool(true, "Statistics Panel", group="⚙️ Settings")
-
-// Table Options
-string tablePosition = input.string("Bottom Right", "Table Position", options=["Top Right", "Top Left", "Bottom Right", "Bottom Left"], group="📊 Table Settings")
-string tableTextSize = input.string("Small", "Table Font Size", options=["Tiny", "Small", "Normal", "Large"], group="📊 Table Settings")
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// CORE LOGIC
+// DRAWING
 // ═══════════════════════════════════════════════════════════════════════════════
 
 bool show = syminfo.ticker == showOn
-string pineLineStyle = lineStyle == "Dashed" ? line.style_dashed : lineStyle == "Dotted" ? line.style_dotted : line.style_solid
 
-// Parse date string to timestamp
-parseDate(dateStr) =>
-    array<string> parts = str.split(dateStr, "/")
+parseDate(string dateStr) =>
+    result = int(na)
+    parts = str.split(dateStr, "/")
     if array.size(parts) == 3
-        int dd = int(str.tonumber(array.get(parts, 0)))
-        int mm = int(str.tonumber(array.get(parts, 1)))
-        int yy = int(str.tonumber(array.get(parts, 2)))
+        dd = int(str.tonumber(array.get(parts, 0)))
+        mm = int(str.tonumber(array.get(parts, 1)))
+        yy = int(str.tonumber(array.get(parts, 2)))
         if yy < 100
             yy := yy + 2000
-        timestamp(yy, mm, dd, 0, 0, 0)
-    else
-        na
+        result := timestamp(yy, mm, dd, 0, 0, 0)
+    result
 
-// Get data for drawing
-getData() =>
-    int dataSize = array.size(DATA_DATES)
-    array<string> dates = array.copy(DATA_DATES)
-    array<float> highs = array.copy(DATA_HIGHS)
-    array<float> lows = array.copy(DATA_LOWS)
-    
-    // Add override if enabled
-    if useOverride
-        array.push(dates, overrideDate)
-        array.push(highs, overrideHigh)
-        array.push(lows, overrideLow)
-    
-    [dates, highs, lows]
-
-// Statistics variables
-var float todayRange = na
 var float lastTop = na
 var float lastLow = na
 
-// Draw levels
 if barstate.islast and show
-    [dates, highs, lows] = getData()
     int dataSize = array.size(dates)
     
+    // Add override if enabled
+    if useOverride
+        lastTop := overrideHigh
+        lastLow := overrideLow
+    
     if dataSize > 0
-        var float prevTop = na
-        var float prevLow = na
-        var int prevTs = na
-        
-        string labelSize = tableTextSize == "Tiny" ? size.tiny : tableTextSize == "Small" ? size.small : tableTextSize == "Large" ? size.large : size.normal
+        float prevTop = na
+        float prevLow = na
+        int prevTs = na
         
         for i = 0 to dataSize - 1
             string dateStr = array.get(dates, i)
@@ -112,7 +347,7 @@ if barstate.islast and show
             int anchorTs = parseDate(dateStr)
             
             if not na(anchorTs) and not na(topVal) and not na(lowVal)
-                int boxStart = anchorTs - (24 * 60 * 60 * 1000)
+                int boxStart = anchorTs - 86400000  // 24 hours in ms
                 
                 // Draw zone
                 if showZones
@@ -120,54 +355,45 @@ if barstate.islast and show
                 
                 // Draw connecting lines
                 if not na(prevTs)
-                    line.new(prevTs, prevTop, anchorTs, topVal, xloc=xloc.bar_time, color=topColor, width=lineThickness, style=pineLineStyle)
-                    line.new(prevTs, prevLow, anchorTs, lowVal, xloc=xloc.bar_time, color=lowColor, width=lineThickness, style=pineLineStyle)
+                    line.new(prevTs, prevTop, anchorTs, topVal, xloc=xloc.bar_time, color=topColor, width=lineThickness)
+                    line.new(prevTs, prevLow, anchorTs, lowVal, xloc=xloc.bar_time, color=lowColor, width=lineThickness)
                 
                 // Labels on last point only
                 if i == dataSize - 1 and showLabels
-                    string topText = showPrices ? "R: " + str.tostring(topVal) : "R"
-                    string lowText = showPrices ? "S: " + str.tostring(lowVal) : "S"
-                    label.new(anchorTs, topVal, topText, xloc=xloc.bar_time, color=topColor, textcolor=color.white, style=label.style_label_left, size=labelSize == size.tiny ? size.tiny : labelSize == size.small ? size.small : labelSize == size.large ? size.large : size.normal)
-                    label.new(anchorTs, lowVal, lowText, xloc=xloc.bar_time, color=lowColor, textcolor=color.white, style=label.style_label_left, size=labelSize == size.tiny ? size.tiny : labelSize == size.small ? size.small : labelSize == size.large ? size.large : size.normal)
-                    
+                    label.new(anchorTs, topVal, "R: " + str.tostring(topVal, "#"), xloc=xloc.bar_time, color=topColor, textcolor=color.white, style=label.style_label_left, size=size.small)
+                    label.new(anchorTs, lowVal, "S: " + str.tostring(lowVal, "#"), xloc=xloc.bar_time, color=lowColor, textcolor=color.white, style=label.style_label_left, size=size.small)
                     lastTop := topVal
                     lastLow := lowVal
-                    todayRange := topVal - lowVal
                 
                 prevTop := topVal
                 prevLow := lowVal
                 prevTs := anchorTs
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// STATISTICS PANEL
+// STATS PANEL
 // ═══════════════════════════════════════════════════════════════════════════════
 
 if showStats and barstate.islast and show
-    var positionSetting = tablePosition == "Top Right" ? position.top_right : tablePosition == "Top Left" ? position.top_left : tablePosition == "Bottom Left" ? position.bottom_left : position.bottom_right
-    var tableSize = tableTextSize == "Tiny" ? size.tiny : tableTextSize == "Normal" ? size.normal : tableTextSize == "Large" ? size.large : size.small
+    positionSetting = tablePosition == "Top Right" ? position.top_right : tablePosition == "Top Left" ? position.top_left : tablePosition == "Bottom Left" ? position.bottom_left : position.bottom_right
     
-    var table statsTable = table.new(positionSetting, 2, 6, bgcolor=color.new(#1a1a1a, 5), border_width=2, border_color=color.new(#333333, 0))
+    var table statsTable = table.new(positionSetting, 2, 5, bgcolor=color.new(#1a1a1a, 5), border_width=1, border_color=color.new(#333333, 0))
     
-    table.cell(statsTable, 0, 0, "📊 Options Levels", text_color=color.new(#ffffff, 0), text_size=tableSize, bgcolor=color.new(#2962ff, 20))
+    table.cell(statsTable, 0, 0, "📊 Options Levels", text_color=#ffffff, text_size=size.small, bgcolor=color.new(#2962ff, 20))
     table.merge_cells(statsTable, 0, 0, 1, 0)
     
     if not na(lastTop)
-        table.cell(statsTable, 0, 1, "Resistance", text_color=color.new(#cccccc, 0), text_size=tableSize, text_halign=text.align_left)
-        table.cell(statsTable, 1, 1, str.tostring(math.round(lastTop, 0)), text_color=color.new(#4caf50, 0), text_size=tableSize, text_halign=text.align_right)
+        table.cell(statsTable, 0, 1, "Resistance", text_color=#cccccc, text_size=size.small, text_halign=text.align_left)
+        table.cell(statsTable, 1, 1, str.tostring(lastTop, "#"), text_color=#4caf50, text_size=size.small, text_halign=text.align_right)
     
     if not na(lastLow)
-        table.cell(statsTable, 0, 2, "Support", text_color=color.new(#cccccc, 0), text_size=tableSize, text_halign=text.align_left)
-        table.cell(statsTable, 1, 2, str.tostring(math.round(lastLow, 0)), text_color=color.new(#f44336, 0), text_size=tableSize, text_halign=text.align_right)
-    
-    if not na(todayRange)
-        table.cell(statsTable, 0, 3, "Range", text_color=color.new(#cccccc, 0), text_size=tableSize, text_halign=text.align_left)
-        table.cell(statsTable, 1, 3, str.tostring(math.round(todayRange, 0)), text_color=color.new(#ffeb3b, 0), text_size=tableSize, text_halign=text.align_right)
+        table.cell(statsTable, 0, 2, "Support", text_color=#cccccc, text_size=size.small, text_halign=text.align_left)
+        table.cell(statsTable, 1, 2, str.tostring(lastLow, "#"), text_color=#f44336, text_size=size.small, text_halign=text.align_right)
     
     if not na(lastTop) and not na(lastLow)
-        float pricePos = (close - lastLow) / (lastTop - lastLow) * 100
-        string posText = pricePos > 66 ? "🔴 Near R" : pricePos < 33 ? "🟢 Near S" : "⚪ Mid"
-        table.cell(statsTable, 0, 4, "Position", text_color=color.new(#cccccc, 0), text_size=tableSize, text_halign=text.align_left)
-        table.cell(statsTable, 1, 4, posText + " " + str.tostring(math.round(pricePos, 1)) + "%", text_color=color.new(#ffeb3b, 0), text_size=tableSize, text_halign=text.align_right)
-    
-    table.cell(statsTable, 0, 5, "Data: " + str.tostring(array.size(DATA_DATES)) + " days", text_color=color.new(#4caf50, 0), text_size=tableSize, text_halign=text.align_center, bgcolor=color.new(#1b5e20, 30))
-    table.merge_cells(statsTable, 0, 5, 1, 5)
+        table.cell(statsTable, 0, 3, "Range", text_color=#cccccc, text_size=size.small, text_halign=text.align_left)
+        table.cell(statsTable, 1, 3, str.tostring(lastTop - lastLow, "#"), text_color=#ffeb3b, text_size=size.small, text_halign=text.align_right)
+        
+        pricePos = (close - lastLow) / (lastTop - lastLow) * 100
+        posText = pricePos > 66 ? "🔴 Near R" : pricePos < 33 ? "🟢 Near S" : "⚪ Mid"
+        table.cell(statsTable, 0, 4, posText, text_color=#ffeb3b, text_size=size.small, text_halign=text.align_center, bgcolor=color.new(#1b5e20, 30))
+        table.merge_cells(statsTable, 0, 4, 1, 4)
