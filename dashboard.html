@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Options Levels Dashboard - BTC/USDT</title>
+    <title>Options Levels Dashboard</title>
     <style>
         * {
             margin: 0;
@@ -12,70 +12,59 @@
             box-sizing: border-box;
         }
 
-        :root {
-            --bg-primary: #131722;
-            --bg-secondary: #1e222d;
-            --bg-tertiary: #2a2e39;
-            --border-color: #363a45;
-            --text-primary: #d1d4dc;
-            --text-secondary: #787b86;
-            --accent-green: #26a69a;
-            --accent-red: #ef5350;
-            --accent-blue: #2962ff;
-        }
-
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #131722;
+            color: #d1d4dc;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         /* Header */
         .header {
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border-color);
-            padding: 8px 16px;
+            background: #1e222d;
+            border-bottom: 1px solid #363a45;
+            padding: 10px 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            height: 50px;
         }
 
         .logo {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             font-weight: 600;
-            font-size: 15px;
+            font-size: 16px;
         }
 
-        .price-display {
+        .price-box {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 15px;
         }
 
-        .price-main {
-            font-size: 20px;
+        .price {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .change {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 13px;
             font-weight: 600;
         }
 
-        .price-change {
-            padding: 2px 8px;
-            border-radius: 3px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .price-change.positive {
+        .change.up {
             background: rgba(38, 166, 154, 0.2);
-            color: var(--accent-green);
+            color: #26a69a;
         }
 
-        .price-change.negative {
+        .change.down {
             background: rgba(239, 83, 80, 0.2);
-            color: var(--accent-red);
+            color: #ef5350;
         }
 
         .status {
@@ -83,13 +72,13 @@
             align-items: center;
             gap: 6px;
             font-size: 12px;
-            color: var(--text-secondary);
+            color: #787b86;
         }
 
         .status-dot {
-            width: 6px;
-            height: 6px;
-            background: var(--accent-green);
+            width: 8px;
+            height: 8px;
+            background: #26a69a;
             border-radius: 50%;
             animation: pulse 2s infinite;
         }
@@ -102,599 +91,457 @@
             }
 
             50% {
-                opacity: 0.4;
+                opacity: 0.5;
             }
         }
 
-        /* Main Layout */
-        .main-container {
+        /* Main */
+        .main {
             display: flex;
-            height: calc(100vh - 50px);
+            flex: 1;
+            overflow: hidden;
         }
 
-        /* Chart Area */
+        /* Chart */
         .chart-area {
             flex: 1;
             display: flex;
             flex-direction: column;
-            position: relative;
         }
 
-        .chart-container {
-            flex: 1;
-            position: relative;
-        }
-
-        #tradingview-widget {
-            width: 100%;
-            height: 100%;
-        }
-
-        /* Level Lines Overlay */
-        .level-overlay {
-            position: absolute;
-            left: 0;
-            right: 60px;
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        .level-line {
-            position: absolute;
-            left: 0;
-            right: 0;
-            height: 2px;
+        .toolbar {
+            background: #1e222d;
+            padding: 8px 15px;
             display: flex;
-            align-items: center;
+            gap: 6px;
+            border-bottom: 1px solid #363a45;
         }
 
-        .level-line.resistance {
-            background: linear-gradient(90deg, transparent, var(--accent-green) 10%, var(--accent-green) 90%, transparent);
+        .toolbar button {
+            padding: 6px 14px;
+            background: #2a2e39;
+            border: 1px solid #363a45;
+            color: #d1d4dc;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.15s;
         }
 
-        .level-line.support {
-            background: linear-gradient(90deg, transparent, var(--accent-red) 10%, var(--accent-red) 90%, transparent);
+        .toolbar button:hover {
+            background: #363a45;
         }
 
-        .level-label {
-            position: absolute;
-            right: -55px;
-            background: var(--bg-secondary);
-            padding: 2px 6px;
-            font-size: 11px;
-            font-weight: 600;
-            border-radius: 2px;
+        .toolbar button.active {
+            background: #2962ff;
+            border-color: #2962ff;
         }
 
-        .level-label.resistance {
-            color: var(--accent-green);
-            border: 1px solid var(--accent-green);
-        }
-
-        .level-label.support {
-            color: var(--accent-red);
-            border: 1px solid var(--accent-red);
+        #chart {
+            flex: 1;
+            background: #131722;
         }
 
         /* Sidebar */
         .sidebar {
-            width: 260px;
-            background: var(--bg-secondary);
-            border-left: 1px solid var(--border-color);
+            width: 250px;
+            background: #1e222d;
+            border-left: 1px solid #363a45;
             overflow-y: auto;
         }
 
-        .sidebar-section {
-            border-bottom: 1px solid var(--border-color);
-            padding: 12px;
+        .panel {
+            border-bottom: 1px solid #363a45;
+            padding: 14px;
         }
 
-        .section-title {
+        .panel-title {
             font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
-            color: var(--text-secondary);
-            margin-bottom: 10px;
-            letter-spacing: 0.3px;
+            color: #787b86;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
         }
 
-        /* Level Items */
-        .level-item {
+        .level {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px;
-            background: var(--bg-tertiary);
-            border-radius: 4px;
-            margin-bottom: 6px;
+            padding: 10px 12px;
+            background: #2a2e39;
+            border-radius: 6px;
+            margin-bottom: 8px;
         }
 
-        .level-label-sidebar {
+        .level-label {
             display: flex;
             align-items: center;
-            gap: 6px;
-            font-size: 12px;
+            gap: 8px;
+            font-size: 13px;
         }
 
-        .level-dot {
-            width: 8px;
-            height: 8px;
+        .dot {
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
         }
 
-        .level-dot.resistance {
-            background: var(--accent-green);
+        .dot.r {
+            background: #26a69a;
         }
 
-        .level-dot.support {
-            background: var(--accent-red);
+        .dot.s {
+            background: #ef5350;
         }
 
-        .level-dot.current {
-            background: var(--accent-blue);
+        .dot.c {
+            background: #2962ff;
         }
 
         .level-value {
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 600;
             font-family: 'Monaco', 'Menlo', monospace;
         }
 
-        .level-value.resistance {
-            color: var(--accent-green);
+        .level-value.r {
+            color: #26a69a;
         }
 
-        .level-value.support {
-            color: var(--accent-red);
+        .level-value.s {
+            color: #ef5350;
         }
 
-        .level-value.current {
-            color: var(--accent-blue);
+        .level-value.c {
+            color: #2962ff;
         }
 
         /* Position Bar */
-        .position-section {
-            margin-top: 10px;
-        }
-
         .position-bar {
-            height: 6px;
-            background: var(--bg-tertiary);
-            border-radius: 3px;
+            height: 8px;
+            background: #2a2e39;
+            border-radius: 4px;
+            margin: 15px 0 8px;
             position: relative;
-            overflow: hidden;
         }
 
-        .position-gradient {
+        .position-fill {
             height: 100%;
-            background: linear-gradient(90deg, var(--accent-red), #ffd600, var(--accent-green));
-            border-radius: 3px;
+            background: linear-gradient(90deg, #ef5350, #ffd600, #26a69a);
+            border-radius: 4px;
         }
 
         .position-marker {
             position: absolute;
-            top: -2px;
-            width: 4px;
-            height: 10px;
-            background: var(--accent-blue);
-            border-radius: 2px;
+            top: -3px;
+            width: 6px;
+            height: 14px;
+            background: #2962ff;
+            border-radius: 3px;
             transform: translateX(-50%);
+            box-shadow: 0 0 6px rgba(41, 98, 255, 0.5);
         }
 
         .position-text {
             text-align: center;
-            font-size: 11px;
-            color: var(--text-secondary);
-            margin-top: 6px;
+            font-size: 12px;
+            color: #787b86;
         }
 
-        .position-percent {
-            color: var(--text-primary);
+        .position-pct {
+            color: #d1d4dc;
             font-weight: 600;
         }
 
-        /* Data Info */
-        .data-grid {
+        /* Info Grid */
+        .info-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 6px;
-            margin-top: 8px;
+            gap: 8px;
         }
 
-        .data-item {
-            background: var(--bg-tertiary);
-            padding: 8px;
-            border-radius: 4px;
+        .info-item {
+            background: #2a2e39;
+            padding: 10px;
+            border-radius: 6px;
         }
 
-        .data-label {
+        .info-label {
             font-size: 10px;
-            color: var(--text-secondary);
-            margin-bottom: 2px;
+            color: #787b86;
+            margin-bottom: 3px;
         }
 
-        .data-value {
-            font-size: 12px;
+        .info-value {
+            font-size: 13px;
             font-weight: 500;
-        }
-
-        /* Intraday History */
-        .intraday-list {
-            max-height: 150px;
-            overflow-y: auto;
-        }
-
-        .intraday-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 6px;
-            background: var(--bg-tertiary);
-            border-radius: 3px;
-            margin-bottom: 4px;
-            font-size: 10px;
-        }
-
-        .intraday-time {
-            color: var(--text-secondary);
-        }
-
-        .intraday-r {
-            color: var(--accent-green);
-        }
-
-        .intraday-s {
-            color: var(--accent-red);
         }
     </style>
 </head>
 
 <body>
-    <!-- Header -->
     <header class="header">
-        <div class="logo">
-            📊 Options Levels Dashboard
+        <div class="logo">📊 Options Levels Dashboard</div>
+        <div class="price-box">
+            <span class="price" id="price">$---,---</span>
+            <span class="change up" id="change">+0.00%</span>
         </div>
-
-        <div class="price-display">
-            <span class="price-main" id="current-price">$---,---</span>
-            <span class="price-change positive" id="price-change">+0.00%</span>
-        </div>
-
         <div class="status">
             <span class="status-dot"></span>
-            <span id="status-text">Connecting...</span>
+            <span id="status">Connecting...</span>
         </div>
     </header>
 
-    <!-- Main -->
-    <div class="main-container">
-        <!-- Chart -->
+    <div class="main">
         <div class="chart-area">
-            <div class="chart-container">
-                <!-- TradingView Widget -->
-                <div id="tradingview-widget"></div>
-
-                <!-- Level Lines Overlay (will be positioned over chart) -->
-                <div class="level-overlay" id="level-overlay">
-                    <div class="level-line resistance" id="resistance-line" style="display: none;">
-                        <span class="level-label resistance" id="resistance-label">R: ---</span>
-                    </div>
-                    <div class="level-line support" id="support-line" style="display: none;">
-                        <span class="level-label support" id="support-label">S: ---</span>
-                    </div>
-                </div>
+            <div class="toolbar">
+                <button data-tf="1">1m</button>
+                <button data-tf="5">5m</button>
+                <button data-tf="15" class="active">15m</button>
+                <button data-tf="60">1H</button>
+                <button data-tf="240">4H</button>
+                <button data-tf="D">1D</button>
             </div>
+            <div id="chart"></div>
         </div>
 
-        <!-- Sidebar -->
         <aside class="sidebar">
-            <!-- Current Levels -->
-            <div class="sidebar-section">
-                <div class="section-title">📊 Options Levels (Tomorrow Expiry)</div>
+            <div class="panel">
+                <div class="panel-title">📊 Options Levels</div>
 
-                <div class="level-item">
-                    <div class="level-label-sidebar">
-                        <div class="level-dot resistance"></div>
-                        <span>Resistance</span>
+                <div class="level">
+                    <div class="level-label">
+                        <div class="dot r"></div> Resistance
                     </div>
-                    <span class="level-value resistance" id="sidebar-resistance">$---,---</span>
+                    <span class="level-value r" id="resistance">$---</span>
                 </div>
 
-                <div class="level-item">
-                    <div class="level-label-sidebar">
-                        <div class="level-dot current"></div>
-                        <span>Current Price</span>
+                <div class="level">
+                    <div class="level-label">
+                        <div class="dot c"></div> Current
                     </div>
-                    <span class="level-value current" id="sidebar-current">$---,---</span>
+                    <span class="level-value c" id="current">$---</span>
                 </div>
 
-                <div class="level-item">
-                    <div class="level-label-sidebar">
-                        <div class="level-dot support"></div>
-                        <span>Support</span>
+                <div class="level">
+                    <div class="level-label">
+                        <div class="dot s"></div> Support
                     </div>
-                    <span class="level-value support" id="sidebar-support">$---,---</span>
+                    <span class="level-value s" id="support">$---</span>
                 </div>
 
-                <!-- Position -->
-                <div class="position-section">
-                    <div class="position-bar">
-                        <div class="position-gradient"></div>
-                        <div class="position-marker" id="position-marker" style="left: 50%"></div>
-                    </div>
-                    <div class="position-text">
-                        Price at <span class="position-percent" id="position-percent">--</span>% of range
-                    </div>
+                <div class="position-bar">
+                    <div class="position-fill"></div>
+                    <div class="position-marker" id="marker" style="left:50%"></div>
                 </div>
+                <div class="position-text"><span class="position-pct" id="pct">--</span>% in range</div>
             </div>
 
-            <!-- Data Info -->
-            <div class="sidebar-section">
-                <div class="section-title">📈 Statistics</div>
-
-                <div class="data-grid">
-                    <div class="data-item">
-                        <div class="data-label">Range</div>
-                        <div class="data-value" id="range-value">$---</div>
+            <div class="panel">
+                <div class="panel-title">📈 Statistics</div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Range</div>
+                        <div class="info-value" id="range">$---</div>
                     </div>
-                    <div class="data-item">
-                        <div class="data-label">Expiry Date</div>
-                        <div class="data-value" id="expiry-date">--/--</div>
+                    <div class="info-item">
+                        <div class="info-label">Expiry</div>
+                        <div class="info-value" id="expiry">--/--</div>
                     </div>
-                    <div class="data-item">
-                        <div class="data-label">Data Updated</div>
-                        <div class="data-value" id="data-update">--:--</div>
+                    <div class="info-item">
+                        <div class="info-label">Updated</div>
+                        <div class="info-value" id="updated">--:--</div>
                     </div>
-                    <div class="data-item">
-                        <div class="data-label">History Days</div>
-                        <div class="data-value" id="history-days">-- days</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Intraday Changes -->
-            <div class="sidebar-section">
-                <div class="section-title">🔄 Level Changes Today</div>
-                <div class="intraday-list" id="intraday-list">
-                    <div class="intraday-item">
-                        <span class="intraday-time">Monitoring...</span>
+                    <div class="info-item">
+                        <div class="info-label">History</div>
+                        <div class="info-value" id="history">-- days</div>
                     </div>
                 </div>
             </div>
         </aside>
     </div>
 
-    <!-- TradingView Widget Script -->
-    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <script>
-        // Configuration
-        const CONFIG = {
-            dataUrl: 'https://raw.githubusercontent.com/mabkkhome-lgtm/deribit-options-data/main/data/btc_levels.csv',
-            updateInterval: 30000, // 30 seconds
-            symbol: 'BINANCE:BTCUSDT'
-        };
-
         // State
-        let state = {
-            resistance: 0,
-            support: 0,
-            currentPrice: 0,
-            priceChange: 0,
-            widget: null,
-            intradayHistory: [],
-            historicalData: []
-        };
-
-        // Format price
-        function formatPrice(price, short = false) {
-            if (short) {
-                return '$' + (price / 1000).toFixed(1) + 'K';
-            }
-            return '$' + price.toLocaleString('en-US', { maximumFractionDigits: 0 });
-        }
-
-        // Initialize TradingView Widget
-        function initWidget() {
-            const container = document.getElementById('tradingview-widget');
-
-            state.widget = new TradingView.widget({
-                "autosize": true,
-                "symbol": CONFIG.symbol,
-                "interval": "15",
-                "timezone": "Etc/UTC",
-                "theme": "dark",
-                "style": "1",
-                "locale": "en",
-                "toolbar_bg": "#1e222d",
-                "enable_publishing": false,
-                "hide_top_toolbar": false,
-                "hide_legend": false,
-                "save_image": false,
-                "container_id": "tradingview-widget",
-                "hide_volume": false,
-                "studies": [
-                    "MASimple@tv-basicstudies"
-                ]
+        let chart, candleSeries, resistanceLine, supportLine;
+        let resistance = 0, support = 0, currentPrice = 0;
+        let timeframe = '15';
+        let ws = null;
+        
+        // Initialize chart
+        function initChart() {
+            const container = document.getElementById('chart');
+            
+            chart = LightweightCharts.createChart(container, {
+                layout: {
+                    background: { type: 'solid', color: '#131722' },
+                    textColor: '#d1d4dc',
+                },
+                grid: {
+                    vertLines: { color: '#1e222d' },
+                    horzLines: { color: '#1e222d' },
+                },
+                rightPriceScale: { borderColor: '#363a45' },
+                timeScale: { 
+                    borderColor: '#363a45',
+                    timeVisible: true,
+                },
+                crosshair: { mode: 1 },
             });
+            
+            candleSeries = chart.addCandlestickSeries({
+                upColor: '#26a69a',
+                downColor: '#ef5350',
+                borderUpColor: '#26a69a',
+                borderDownColor: '#ef5350',
+                wickUpColor: '#26a69a',
+                wickDownColor: '#ef5350',
+            });
+            
+            // Handle resize
+            new ResizeObserver(() => {
+                chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+            }).observe(container);
         }
-
-        // Fetch current price from Binance
-        async function fetchCurrentPrice() {
-            try {
-                const response = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT');
-                const data = await response.json();
-
-                state.currentPrice = parseFloat(data.lastPrice);
-                state.priceChange = parseFloat(data.priceChangePercent);
-
-                // Update header
-                document.getElementById('current-price').textContent = formatPrice(state.currentPrice);
-                document.getElementById('sidebar-current').textContent = formatPrice(state.currentPrice);
-
-                const changeEl = document.getElementById('price-change');
-                changeEl.textContent = (state.priceChange >= 0 ? '+' : '') + state.priceChange.toFixed(2) + '%';
-                changeEl.className = 'price-change ' + (state.priceChange >= 0 ? 'positive' : 'negative');
-
-                document.getElementById('status-text').textContent = 'Live';
-
-                // Update position
-                updatePosition();
-
-            } catch (error) {
-                console.error('Error fetching price:', error);
-                document.getElementById('status-text').textContent = 'Reconnecting...';
+        
+        // Draw level lines
+        function drawLevels() {
+            // Remove old lines
+            if (resistanceLine) candleSeries.removePriceLine(resistanceLine);
+            if (supportLine) candleSeries.removePriceLine(supportLine);
+            
+            if (resistance > 0) {
+                resistanceLine = candleSeries.createPriceLine({
+                    price: resistance,
+                    color: '#26a69a',
+                    lineWidth: 2,
+                    lineStyle: 0, // Solid
+                    axisLabelVisible: true,
+                    title: 'R',
+                });
+            }
+            
+            if (support > 0) {
+                supportLine = candleSeries.createPriceLine({
+                    price: support,
+                    color: '#ef5350',
+                    lineWidth: 2,
+                    lineStyle: 0,
+                    axisLabelVisible: true,
+                    title: 'S',
+                });
             }
         }
-
-        // Fetch options levels data
-        async function fetchLevelsData() {
+        
+        // Fetch candles
+        async function fetchCandles() {
+            const interval = timeframe === 'D' ? '1d' : timeframe + 'm';
+            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=500`);
+            const data = await res.json();
+            
+            const candles = data.map(d => ({
+                time: d[0] / 1000,
+                open: parseFloat(d[1]),
+                high: parseFloat(d[2]),
+                low: parseFloat(d[3]),
+                close: parseFloat(d[4]),
+            }));
+            
+            candleSeries.setData(candles);
+            chart.timeScale().fitContent();
+        }
+        
+        // WebSocket for live candles
+        function connectWS() {
+            if (ws) ws.close();
+            
+            const interval = timeframe === 'D' ? '1d' : timeframe + 'm';
+            ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${interval}`);
+            
+            ws.onmessage = (e) => {
+                const { k } = JSON.parse(e.data);
+                currentPrice = parseFloat(k.c);
+                
+                candleSeries.update({
+                    time: k.t / 1000,
+                    open: parseFloat(k.o),
+                    high: parseFloat(k.h),
+                    low: parseFloat(k.l),
+                    close: parseFloat(k.c),
+                });
+                
+                updateUI();
+            };
+            
+            ws.onopen = () => document.getElementById('status').textContent = 'Live';
+        }
+        
+        // Fetch levels
+        async function fetchLevels() {
             try {
-                const response = await fetch(CONFIG.dataUrl + '?t=' + Date.now());
-                const text = await response.text();
-
+                const res = await fetch('https://raw.githubusercontent.com/mabkkhome-lgtm/deribit-options-data/main/data/btc_levels.csv?t=' + Date.now());
+                const text = await res.text();
                 const lines = text.trim().split('\n');
-                const data = [];
-
-                for (let i = 1; i < lines.length; i++) {
-                    const parts = lines[i].split(',');
-                    if (parts.length >= 3) {
-                        data.push({
-                            date: parts[0],
-                            high: parseFloat(parts[1]),
-                            low: parseFloat(parts[2])
-                        });
-                    }
+                
+                if (lines.length > 1) {
+                    const last = lines[lines.length - 1].split(',');
+                    resistance = parseFloat(last[1]);
+                    support = parseFloat(last[2]);
+                    
+                    document.getElementById('expiry').textContent = last[0];
+                    document.getElementById('history').textContent = (lines.length - 1) + ' days';
+                    document.getElementById('updated').textContent = new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+                    
+                    drawLevels();
+                    updateUI();
                 }
-
-                state.historicalData = data;
-
-                if (data.length > 0) {
-                    const latest = data[data.length - 1];
-
-                    // Check if levels changed
-                    if (state.resistance !== latest.high || state.support !== latest.low) {
-                        // Add to intraday history
-                        if (state.resistance > 0) {
-                            state.intradayHistory.unshift({
-                                time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-                                resistance: latest.high,
-                                support: latest.low
-                            });
-
-                            if (state.intradayHistory.length > 15) {
-                                state.intradayHistory.pop();
-                            }
-
-                            updateIntradayList();
-                        }
-                    }
-
-                    state.resistance = latest.high;
-                    state.support = latest.low;
-
-                    updateLevelsDisplay();
-
-                    document.getElementById('expiry-date').textContent = latest.date;
-                    document.getElementById('history-days').textContent = data.length + ' days';
-                    document.getElementById('data-update').textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                }
-
-            } catch (error) {
-                console.error('Error fetching levels:', error);
+            } catch (e) {
+                console.error('Error fetching levels:', e);
             }
         }
-
-        // Update levels display
-        function updateLevelsDisplay() {
-            document.getElementById('sidebar-resistance').textContent = formatPrice(state.resistance);
-            document.getElementById('sidebar-support').textContent = formatPrice(state.support);
-            document.getElementById('range-value').textContent = formatPrice(state.resistance - state.support);
-
-            // Update overlay labels
-            document.getElementById('resistance-label').textContent = 'R: ' + formatPrice(state.resistance, true);
-            document.getElementById('support-label').textContent = 'S: ' + formatPrice(state.support, true);
-
-            // Show lines (we can't position them perfectly without chart API access,
-            // so we position them relative to the visible area as best estimate)
-            updateOverlayLines();
-        }
-
-        // Update overlay lines position
-        function updateOverlayLines() {
-            const resistance = state.resistance;
-            const support = state.support;
-            const current = state.currentPrice;
-
-            if (resistance > 0 && support > 0 && current > 0) {
-                // Estimate chart price range (rough approximation)
-                const range = Math.max(resistance, current) - Math.min(support, current);
-                const chartTop = Math.max(resistance, current) + range * 0.1;
-                const chartBottom = Math.min(support, current) - range * 0.1;
-                const chartRange = chartTop - chartBottom;
-
-                // Calculate Y positions (percentage from top)
-                const resistanceY = ((chartTop - resistance) / chartRange) * 100;
-                const supportY = ((chartTop - support) / chartRange) * 100;
-
-                // Position the lines
-                const rLine = document.getElementById('resistance-line');
-                const sLine = document.getElementById('support-line');
-
-                rLine.style.display = 'block';
-                rLine.style.top = Math.max(10, Math.min(90, resistanceY)) + '%';
-
-                sLine.style.display = 'block';
-                sLine.style.top = Math.max(10, Math.min(90, supportY)) + '%';
+        
+        // Update UI
+        function updateUI() {
+            const fmt = (n) => '$' + n.toLocaleString('en-US', {maximumFractionDigits: 0});
+            
+            document.getElementById('price').textContent = fmt(currentPrice);
+            document.getElementById('current').textContent = fmt(currentPrice);
+            document.getElementById('resistance').textContent = fmt(resistance);
+            document.getElementById('support').textContent = fmt(support);
+            document.getElementById('range').textContent = fmt(resistance - support);
+            
+            if (resistance > support && currentPrice > 0) {
+                const pct = ((currentPrice - support) / (resistance - support)) * 100;
+                const clamped = Math.max(0, Math.min(100, pct));
+                document.getElementById('marker').style.left = clamped + '%';
+                document.getElementById('pct').textContent = pct.toFixed(1);
             }
         }
-
-        // Update position indicator
-        function updatePosition() {
-            if (state.resistance > state.support && state.currentPrice > 0) {
-                const range = state.resistance - state.support;
-                const position = ((state.currentPrice - state.support) / range) * 100;
-                const clamped = Math.max(0, Math.min(100, position));
-
-                document.getElementById('position-marker').style.left = clamped + '%';
-                document.getElementById('position-percent').textContent = position.toFixed(1);
-            }
-        }
-
-        // Update intraday history list
-        function updateIntradayList() {
-            const container = document.getElementById('intraday-list');
-
-            if (state.intradayHistory.length === 0) {
-                container.innerHTML = '<div class="intraday-item"><span class="intraday-time">No changes yet</span></div>';
-                return;
-            }
-
-            container.innerHTML = state.intradayHistory.map(item => `
-                <div class="intraday-item">
-                    <span class="intraday-time">${item.time}</span>
-                    <span class="intraday-r">R: ${(item.resistance / 1000).toFixed(1)}K</span>
-                    <span class="intraday-s">S: ${(item.support / 1000).toFixed(1)}K</span>
-                </div>
-            `).join('');
-        }
-
-        // Initialize
-        async function init() {
-            initWidget();
-
-            // Initial data fetch
-            await fetchLevelsData();
-            await fetchCurrentPrice();
-
-            // Set up intervals
-            setInterval(fetchCurrentPrice, 5000);  // Price every 5 seconds
-            setInterval(fetchLevelsData, CONFIG.updateInterval);  // Levels every 30 seconds
-            setInterval(updateOverlayLines, 1000);  // Update line positions
-        }
-
-        document.addEventListener('DOMContentLoaded', init);
+        
+        // Toolbar
+        document.querySelectorAll('[data-tf]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-tf]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                timeframe = btn.dataset.tf;
+                fetchCandles().then(() => {
+                    drawLevels();
+                    connectWS();
+                });
+            });
+        });
+        
+        // Init
+        initChart();
+        fetchCandles().then(() => {
+            fetchLevels();
+            connectWS();
+        });
+        
+        // Refresh levels every 30 seconds
+        setInterval(fetchLevels, 30000);
     </script>
 </body>
 
