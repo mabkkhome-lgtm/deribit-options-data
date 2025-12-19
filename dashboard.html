@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Options Levels Tracker - Real-Time</title>
+    <title>Options Levels - Evolution Tracker</title>
     <style>
         * {
             margin: 0;
@@ -45,23 +45,6 @@
         .price {
             font-size: 22px;
             font-weight: 700;
-        }
-
-        .change {
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .change.up {
-            background: rgba(38, 166, 154, 0.2);
-            color: #26a69a;
-        }
-
-        .change.down {
-            background: rgba(239, 83, 80, 0.2);
-            color: #ef5350;
         }
 
         .status {
@@ -209,41 +192,6 @@
             color: #2962ff;
         }
 
-        .position-bar {
-            height: 6px;
-            background: #2a2e39;
-            border-radius: 3px;
-            margin: 10px 0 6px;
-            position: relative;
-        }
-
-        .position-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ff0000, #ffd600, #00ff00);
-            border-radius: 3px;
-        }
-
-        .position-marker {
-            position: absolute;
-            top: -2px;
-            width: 4px;
-            height: 10px;
-            background: #2962ff;
-            border-radius: 2px;
-            transform: translateX(-50%);
-        }
-
-        .position-text {
-            text-align: center;
-            font-size: 11px;
-            color: #787b86;
-        }
-
-        .position-pct {
-            color: #d1d4dc;
-            font-weight: 600;
-        }
-
         .stats-row {
             display: flex;
             justify-content: space-between;
@@ -280,7 +228,7 @@
         }
 
         .history-list {
-            max-height: 200px;
+            max-height: 250px;
             overflow-y: auto;
         }
 
@@ -296,6 +244,7 @@
 
         .history-time {
             color: #787b86;
+            min-width: 50px;
         }
 
         .history-r {
@@ -311,29 +260,14 @@
             border-color: #2962ff !important;
             margin-left: auto;
         }
-
-        .loading {
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            from {
-                transform: rotate(0deg);
-            }
-
-            to {
-                transform: rotate(360deg);
-            }
-        }
     </style>
 </head>
 
 <body>
     <header class="header">
-        <div class="logo">📊 Options Levels (Real-Time)</div>
+        <div class="logo">📊 Options Levels Evolution</div>
         <div class="price-box">
             <span class="price" id="price">$---,---</span>
-            <span class="change up" id="change">+0.00%</span>
         </div>
         <div class="status">
             <span class="status-dot"></span>
@@ -350,23 +284,23 @@
                 <button data-tf="60">1H</button>
                 <button data-tf="240">4H</button>
                 <button data-tf="D">1D</button>
-                <button class="btn-refresh" id="btn-refresh">🔄 Refresh Levels</button>
+                <button class="btn-refresh" id="btn-refresh">🔄 Calculate Now</button>
             </div>
             <div id="chart"></div>
         </div>
 
         <aside class="sidebar">
             <div class="panel">
-                <div class="panel-title">📊 Tomorrow's Prediction (Live)</div>
+                <div class="panel-title">📊 Current Levels (Latest)</div>
                 <div class="level">
                     <div class="level-label">
                         <div class="dot r"></div> Resistance
                     </div>
-                    <span class="level-value r" id="r-val">Calculating...</span>
+                    <span class="level-value r" id="r-val">---</span>
                 </div>
                 <div class="level">
                     <div class="level-label">
-                        <div class="dot c"></div> Current Price
+                        <div class="dot c"></div> Price
                     </div>
                     <span class="level-value c" id="c-val">$---</span>
                 </div>
@@ -374,45 +308,28 @@
                     <div class="level-label">
                         <div class="dot s"></div> Support
                     </div>
-                    <span class="level-value s" id="s-val">Calculating...</span>
+                    <span class="level-value s" id="s-val">---</span>
                 </div>
-                <div class="position-bar">
-                    <div class="position-fill"></div>
-                    <div class="position-marker" id="marker" style="left:50%"></div>
-                </div>
-                <div class="position-text"><span class="position-pct" id="pct">--</span>% in range</div>
             </div>
 
             <div class="panel">
-                <div class="panel-title">📈 Live Stats</div>
+                <div class="panel-title">📈 Stats</div>
                 <div class="stats-row"><span class="stats-label">Range</span><span class="stats-value yellow"
                         id="stat-range">$---</span></div>
-                <div class="stats-row"><span class="stats-label">Dist to R</span><span class="stats-value green"
-                        id="stat-dist-r">--%</span></div>
-                <div class="stats-row"><span class="stats-label">Dist to S</span><span class="stats-value red"
-                        id="stat-dist-s">--%</span></div>
-                <div class="stats-row"><span class="stats-label">Position</span><span class="stats-value yellow"
-                        id="stat-pos">--</span></div>
-            </div>
-
-            <div class="panel">
-                <div class="panel-title">🔄 Thales OSS Data</div>
-                <div class="stats-row"><span class="stats-label">Expiry</span><span class="stats-value cyan"
-                        id="stat-expiry">Tomorrow</span></div>
-                <div class="stats-row"><span class="stats-label">Long Positions</span><span class="stats-value"
+                <div class="stats-row"><span class="stats-label">Longs</span><span class="stats-value green"
                         id="stat-longs">--</span></div>
-                <div class="stats-row"><span class="stats-label">Short Positions</span><span class="stats-value"
+                <div class="stats-row"><span class="stats-label">Shorts</span><span class="stats-value red"
                         id="stat-shorts">--</span></div>
-                <div class="stats-row"><span class="stats-label">Last Calc</span><span class="stats-value"
-                        id="stat-time">--:--</span></div>
-                <div class="stats-row"><span class="stats-label">Next Update</span><span class="stats-value cyan"
+                <div class="stats-row"><span class="stats-label">Next Calc</span><span class="stats-value cyan"
                         id="stat-next">--:--</span></div>
+                <div class="stats-row"><span class="stats-label">Data Points</span><span class="stats-value"
+                        id="stat-points">0</span></div>
             </div>
 
             <div class="panel">
-                <div class="panel-title">📜 Level History (Today)</div>
+                <div class="panel-title">📜 Level Evolution (All Calculations)</div>
                 <div class="history-list" id="history-list">
-                    <div class="history-item"><span class="history-time">Waiting for data...</span></div>
+                    <div class="history-item"><span class="history-time">Waiting...</span></div>
                 </div>
             </div>
         </aside>
@@ -421,249 +338,154 @@
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <script>
         // ═══════════════════════════════════════════════════════════════════════════════
-        // CONFIGURATION
+        // CONFIG
         // ═══════════════════════════════════════════════════════════════════════════════
-
+        
         const THALES_API = 'https://oss.thales-mfi.com/api/MarketScreener/FetchOptions';
         const UPDATE_INTERVAL_MS = 60000; // 1 minute
-        const CORS_PROXY = 'https://corsproxy.io/?'; // Free CORS proxy
-
+        const CORS_PROXY = 'https://corsproxy.io/?';
+        
         // ═══════════════════════════════════════════════════════════════════════════════
-        // STATE
+        // STATE - EVOLUTION DATA
         // ═══════════════════════════════════════════════════════════════════════════════
-
+        
         let chart, candleSeries, rSeries, sSeries;
-        let currentLevels = { r: 0, s: 0 };
         let currentPrice = 0;
         let timeframe = '15';
         let ws = null;
-        let levelHistory = [];
         let nextUpdateTime = null;
-
+        
+        // EVOLUTION DATA: Each calculation adds a point
+        // Format: { time: unix_timestamp, r: resistance, s: support }
+        let evolutionData = [];
+        
         // ═══════════════════════════════════════════════════════════════════════════════
-        // THALES OSS CALCULATION (Ported from Python)
+        // THALES CALCULATION (from Python)
         // ═══════════════════════════════════════════════════════════════════════════════
-
+        
         function getTomorrowExpiryCode() {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
             tomorrow.setUTCHours(0, 0, 0, 0);
             const epoch = new Date(0);
             const daysSinceEpoch = Math.floor((tomorrow - epoch) / (1000 * 60 * 60 * 24));
-            const dateStr = `${tomorrow.getDate().toString().padStart(2, '0')}/${(tomorrow.getMonth() + 1).toString().padStart(2, '0')}/${tomorrow.getFullYear()}`;
-            return { code: daysSinceEpoch, dateStr };
+            return daysSinceEpoch;
         }
-
+        
         function parseOptionsCSV(csvData, targetExpiryCode) {
-            const longs = [];
-            const shorts = [];
-
-            const lines = csvData.trim().split('\n');
-            for (const line of lines) {
+            const longs = [], shorts = [];
+            for (const line of csvData.trim().split('\n')) {
                 if (!line.trim()) continue;
                 const parts = line.split(',');
                 if (parts.length < 7) continue;
-
                 try {
-                    const optionType = parseInt(parts[0]);
                     const expiryCode = parseInt(parts[1]);
-                    const strike = parseFloat(parts[2]);
-                    const side = parseInt(parts[4]);
-                    const size = parseFloat(parts[5]);
-                    const entryPriceUSD = parseFloat(parts[6]);
-
                     if (expiryCode !== targetExpiryCode) continue;
-
-                    const position = {
-                        type: optionType === 0 ? 'call' : 'put',
-                        strike,
-                        size,
-                        premium_usd: entryPriceUSD
+                    const pos = {
+                        type: parseInt(parts[0]) === 0 ? 'call' : 'put',
+                        strike: parseFloat(parts[2]),
+                        size: parseFloat(parts[5]),
+                        premium_usd: parseFloat(parts[6])
                     };
-
-                    if (side === 0) {
-                        longs.push(position);
-                    } else {
-                        shorts.push(position);
-                    }
-                } catch (e) {
-                    continue;
-                }
+                    if (parseInt(parts[4]) === 0) longs.push(pos);
+                    else shorts.push(pos);
+                } catch (e) { continue; }
             }
-
             return { longs, shorts };
         }
-
-        function calculatePnLAtExpiry(positions, underlyingPrice, isBuyer) {
-            let totalPnL = 0;
-
-            for (const pos of positions) {
-                const strike = pos.strike;
-                const size = pos.size;
-                const premium = pos.premium_usd;
-
-                let intrinsic;
-                if (pos.type === 'call') {
-                    intrinsic = Math.max(underlyingPrice - strike, 0);
-                } else {
-                    intrinsic = Math.max(strike - underlyingPrice, 0);
-                }
-
-                let pnl;
-                if (isBuyer) {
-                    pnl = (intrinsic - premium) * size;
-                } else {
-                    pnl = (premium - intrinsic) * size;
-                }
-
-                totalPnL += pnl;
+        
+        function calculatePnL(positions, price, isBuyer) {
+            let total = 0;
+            for (const p of positions) {
+                const intrinsic = p.type === 'call' 
+                    ? Math.max(price - p.strike, 0) 
+                    : Math.max(p.strike - price, 0);
+                total += (isBuyer ? intrinsic - p.premium_usd : p.premium_usd - intrinsic) * p.size;
             }
-
-            return totalPnL;
+            return total;
         }
-
-        function findConvergencePoints(longs, shorts) {
-            const allStrikes = [...longs, ...shorts].map(p => p.strike);
-            if (allStrikes.length === 0) return { support: 85000, resistance: 100000 };
-
-            const minStrike = Math.min(...allStrikes);
-            const maxStrike = Math.max(...allStrikes);
-
-            const priceMin = Math.floor(minStrike * 0.90);
-            const priceMax = Math.ceil(maxStrike * 1.10);
-            const step = 10;
-
+        
+        function findConvergence(longs, shorts) {
+            const strikes = [...longs, ...shorts].map(p => p.strike);
+            if (strikes.length === 0) return { r: 95000, s: 85000 };
+            
+            const minP = Math.floor(Math.min(...strikes) * 0.9);
+            const maxP = Math.ceil(Math.max(...strikes) * 1.1);
             const intersections = [];
-            let prevLongPnL = null;
-            let prevShortPnL = null;
-
-            for (let price = priceMin; price < priceMax; price += step) {
-                const longPnL = calculatePnLAtExpiry(longs, price, true);
-                const shortPnL = calculatePnLAtExpiry(shorts, price, false);
-
-                if (prevLongPnL !== null) {
-                    const prevDiff = prevLongPnL - prevShortPnL;
-                    const currDiff = longPnL - shortPnL;
-
-                    if (prevDiff * currDiff < 0) {
-                        const t = Math.abs(prevDiff) / (Math.abs(prevDiff) + Math.abs(currDiff));
-                        const crossingPrice = (price - step) + t * step;
-                        intersections.push(Math.round(crossingPrice));
-                    }
+            let prevDiff = null;
+            
+            for (let price = minP; price < maxP; price += 10) {
+                const diff = calculatePnL(longs, price, true) - calculatePnL(shorts, price, false);
+                if (prevDiff !== null && prevDiff * diff < 0) {
+                    intersections.push(price);
                 }
-
-                prevLongPnL = longPnL;
-                prevShortPnL = shortPnL;
+                prevDiff = diff;
             }
-
-            console.log(`Found ${intersections.length} intersection points:`, intersections);
-
-            if (intersections.length >= 2) {
-                return { support: intersections[0], resistance: intersections[intersections.length - 1] };
-            } else if (intersections.length === 1) {
-                return { support: intersections[0], resistance: intersections[0] };
-            } else {
-                const meanStrike = allStrikes.reduce((a, b) => a + b, 0) / allStrikes.length;
-                return { support: Math.round(meanStrike * 0.95), resistance: Math.round(meanStrike * 1.05) };
-            }
+            
+            if (intersections.length >= 2) return { s: intersections[0], r: intersections[intersections.length - 1] };
+            if (intersections.length === 1) return { s: intersections[0], r: intersections[0] };
+            const avg = strikes.reduce((a, b) => a + b, 0) / strikes.length;
+            return { s: Math.round(avg * 0.95), r: Math.round(avg * 1.05) };
         }
-
-        async function fetchAndCalculateLevels() {
-            const btn = document.getElementById('btn-refresh');
-            btn.classList.add('loading');
-            btn.disabled = true;
+        
+        async function fetchAndCalculate() {
             document.getElementById('status').textContent = 'Calculating...';
-
+            
             try {
                 const now = new Date();
-                const startOfDay = new Date(now);
-                startOfDay.setUTCHours(0, 0, 0, 0);
-
-                const fromTimestamp = startOfDay.getTime();
-                const toTimestamp = now.getTime();
-
-                const url = `${CORS_PROXY}${THALES_API}?source=1&fromDate=${fromTimestamp}&toDate=${toTimestamp}`;
-
-                console.log('Fetching from Thales OSS...');
-                const response = await fetch(url);
-
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-                const csvData = await response.text();
-                const totalLines = csvData.trim().split('\n').length;
-                console.log(`Received ${totalLines} trade records`);
-
-                const { code: expiryCode, dateStr: expiryDate } = getTomorrowExpiryCode();
-                document.getElementById('stat-expiry').textContent = expiryDate;
-
-                const { longs, shorts } = parseOptionsCSV(csvData, expiryCode);
-                console.log(`Longs: ${longs.length}, Shorts: ${shorts.length}`);
-
+                const startOfDay = new Date(now); startOfDay.setUTCHours(0, 0, 0, 0);
+                
+                const url = `${CORS_PROXY}${THALES_API}?source=1&fromDate=${startOfDay.getTime()}&toDate=${now.getTime()}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Fetch failed');
+                
+                const csv = await res.text();
+                const expiryCode = getTomorrowExpiryCode();
+                const { longs, shorts } = parseOptionsCSV(csv, expiryCode);
+                
                 document.getElementById('stat-longs').textContent = longs.length;
                 document.getElementById('stat-shorts').textContent = shorts.length;
-
+                
                 if (longs.length === 0 || shorts.length === 0) {
-                    console.warn('Not enough data');
-                    document.getElementById('status').textContent = 'No data';
+                    console.warn('No positions found');
                     return;
                 }
-
-                const { support, resistance } = findConvergencePoints(longs, shorts);
-
-                // Track changes
-                if (currentLevels.r > 0 && (resistance !== currentLevels.r || support !== currentLevels.s)) {
-                    levelHistory.unshift({
-                        time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-                        r: resistance,
-                        s: support
-                    });
-                    if (levelHistory.length > 50) levelHistory.pop();
-                    updateHistory();
-                }
-
-                currentLevels = { r: resistance, s: support };
-
-                // Update dynamic lines
-                updateDynamicLines();
-                updateUI();
-                updateStats();
-
-                document.getElementById('stat-time').textContent = now.toLocaleTimeString();
+                
+                const { r, s } = findConvergence(longs, shorts);
+                const timestamp = Math.floor(now.getTime() / 1000);
+                
+                // ADD NEW POINT TO EVOLUTION DATA
+                evolutionData.push({ time: timestamp, r, s });
+                
+                console.log(`✅ ${now.toLocaleTimeString()} - R: ${r}, S: ${s}`);
+                
+                // Update chart lines
+                updateEvolutionLines();
+                updateUI(r, s);
+                updateHistory();
+                
+                document.getElementById('stat-points').textContent = evolutionData.length;
                 document.getElementById('status').textContent = 'Live';
-
-                console.log(`✅ Resistance: ${resistance}, Support: ${support}`);
-
+                
             } catch (e) {
-                console.error('Error fetching levels:', e);
-                document.getElementById('status').textContent = 'Error - retrying...';
-            } finally {
-                btn.classList.remove('loading');
-                btn.disabled = false;
-                scheduleNextUpdate();
+                console.error('Error:', e);
+                document.getElementById('status').textContent = 'Error';
             }
+            
+            scheduleNext();
         }
-
-        function scheduleNextUpdate() {
-            nextUpdateTime = new Date(Date.now() + UPDATE_INTERVAL_MS);
-            updateNextTime();
+        
+        function scheduleNext() {
+            nextUpdateTime = Date.now() + UPDATE_INTERVAL_MS;
         }
-
-        function updateNextTime() {
-            if (nextUpdateTime) {
-                const diff = Math.max(0, Math.floor((nextUpdateTime - Date.now()) / 1000));
-                const mins = Math.floor(diff / 60);
-                const secs = diff % 60;
-                document.getElementById('stat-next').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
-            }
-        }
-
+        
         // ═══════════════════════════════════════════════════════════════════════════════
         // CHART
         // ═══════════════════════════════════════════════════════════════════════════════
-
+        
         function initChart() {
             const container = document.getElementById('chart');
-
+            
             chart = LightweightCharts.createChart(container, {
                 layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
                 grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
@@ -671,171 +493,158 @@
                 timeScale: { borderColor: '#363a45', timeVisible: true },
                 crosshair: { mode: 1 },
             });
-
+            
             candleSeries = chart.addCandlestickSeries({
                 upColor: '#26a69a', downColor: '#ef5350',
                 borderUpColor: '#26a69a', borderDownColor: '#ef5350',
                 wickUpColor: '#26a69a', wickDownColor: '#ef5350',
             });
-
-            rSeries = chart.addLineSeries({ color: '#00ff00', lineWidth: 2, title: 'R', priceLineVisible: true, lastValueVisible: true });
-            sSeries = chart.addLineSeries({ color: '#ff0000', lineWidth: 2, title: 'S', priceLineVisible: true, lastValueVisible: true });
-
+            
+            // EVOLUTION LINES - will show the R/S path over time
+            rSeries = chart.addLineSeries({ 
+                color: '#00ff00', 
+                lineWidth: 3, 
+                title: 'R',
+                priceLineVisible: true,
+                lastValueVisible: true,
+            });
+            
+            sSeries = chart.addLineSeries({ 
+                color: '#ff0000', 
+                lineWidth: 3, 
+                title: 'S',
+                priceLineVisible: true,
+                lastValueVisible: true,
+            });
+            
             new ResizeObserver(() => {
                 chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
             }).observe(container);
         }
-
-        let chartData = [];
-
+        
+        function updateEvolutionLines() {
+            if (evolutionData.length === 0) return;
+            
+            // Convert evolution data to line series format
+            const rData = evolutionData.map(d => ({ time: d.time, value: d.r }));
+            const sData = evolutionData.map(d => ({ time: d.time, value: d.s }));
+            
+            rSeries.setData(rData);
+            sSeries.setData(sData);
+        }
+        
         async function fetchCandles() {
             const interval = timeframe === 'D' ? '1d' : timeframe + 'm';
             const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=500`);
             const data = await res.json();
-
-            chartData = data.map(d => ({
+            
+            const candles = data.map(d => ({
                 time: d[0] / 1000,
                 open: parseFloat(d[1]),
                 high: parseFloat(d[2]),
                 low: parseFloat(d[3]),
                 close: parseFloat(d[4]),
             }));
-
-            candleSeries.setData(chartData);
+            
+            candleSeries.setData(candles);
             chart.timeScale().fitContent();
-
-            if (currentLevels.r > 0) updateDynamicLines();
         }
-
-        function updateDynamicLines() {
-            if (chartData.length === 0 || currentLevels.r === 0) return;
-
-            // Create dynamic line data for the visible candles
-            const rData = chartData.map(c => ({ time: c.time, value: currentLevels.r }));
-            const sData = chartData.map(c => ({ time: c.time, value: currentLevels.s }));
-
-            rSeries.setData(rData);
-            sSeries.setData(sData);
-        }
-
+        
         function connectWS() {
             if (ws) ws.close();
-
             const interval = timeframe === 'D' ? '1d' : timeframe + 'm';
             ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${interval}`);
-
+            
             ws.onmessage = (e) => {
                 const { k } = JSON.parse(e.data);
                 currentPrice = parseFloat(k.c);
-                const candleTime = k.t / 1000;
-
+                
                 candleSeries.update({
-                    time: candleTime,
+                    time: k.t / 1000,
                     open: parseFloat(k.o),
                     high: parseFloat(k.h),
                     low: parseFloat(k.l),
                     close: parseFloat(k.c),
                 });
-
-                if (currentLevels.r > 0) {
-                    rSeries.update({ time: candleTime, value: currentLevels.r });
-                    sSeries.update({ time: candleTime, value: currentLevels.s });
-                }
-
-                updateUI();
+                
+                document.getElementById('price').textContent = '$' + currentPrice.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                document.getElementById('c-val').textContent = '$' + currentPrice.toLocaleString();
             };
-
+            
             ws.onopen = () => {
-                if (currentLevels.r > 0) document.getElementById('status').textContent = 'Live';
+                if (evolutionData.length > 0) document.getElementById('status').textContent = 'Live';
             };
         }
-
+        
         // ═══════════════════════════════════════════════════════════════════════════════
-        // UI UPDATES
+        // UI
         // ═══════════════════════════════════════════════════════════════════════════════
-
-        function updateUI() {
-            const fmt = (n) => '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
-
-            document.getElementById('price').textContent = fmt(currentPrice);
-            document.getElementById('c-val').textContent = fmt(currentPrice);
-            document.getElementById('r-val').textContent = fmt(currentLevels.r);
-            document.getElementById('s-val').textContent = fmt(currentLevels.s);
-
-            if (currentLevels.r > currentLevels.s && currentPrice > 0) {
-                const range = currentLevels.r - currentLevels.s;
-                const pct = ((currentPrice - currentLevels.s) / range) * 100;
-                const clamped = Math.max(0, Math.min(100, pct));
-                document.getElementById('marker').style.left = clamped + '%';
-                document.getElementById('pct').textContent = pct.toFixed(1);
-            }
+        
+        function updateUI(r, s) {
+            const fmt = n => '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+            document.getElementById('r-val').textContent = fmt(r);
+            document.getElementById('s-val').textContent = fmt(s);
+            document.getElementById('stat-range').textContent = fmt(r - s);
         }
-
-        function updateStats() {
-            const r = currentLevels.r;
-            const s = currentLevels.s;
-            const range = r - s;
-
-            document.getElementById('stat-range').textContent = '$' + range.toLocaleString();
-
-            if (currentPrice > 0 && r > 0 && s > 0) {
-                const distR = ((r - currentPrice) / currentPrice * 100).toFixed(2);
-                const distS = ((currentPrice - s) / currentPrice * 100).toFixed(2);
-                document.getElementById('stat-dist-r').textContent = distR + '%';
-                document.getElementById('stat-dist-s').textContent = distS + '%';
-
-                const pct = ((currentPrice - s) / range) * 100;
-                let posText = '⚪ Mid';
-                if (pct > 66) posText = '🔴 Near R';
-                else if (pct < 33) posText = '🟢 Near S';
-                document.getElementById('stat-pos').textContent = posText + ' ' + pct.toFixed(1) + '%';
-            }
-        }
-
+        
         function updateHistory() {
             const container = document.getElementById('history-list');
-            if (levelHistory.length === 0) {
-                container.innerHTML = '<div class="history-item"><span class="history-time">No changes</span></div>';
+            if (evolutionData.length === 0) {
+                container.innerHTML = '<div class="history-item"><span class="history-time">No data</span></div>';
                 return;
             }
-
-            container.innerHTML = levelHistory.map(h => `
-                <div class="history-item">
-                    <span class="history-time">${h.time}</span>
-                    <span class="history-r">R: $${(h.r / 1000).toFixed(1)}K</span>
-                    <span class="history-s">S: $${(h.s / 1000).toFixed(1)}K</span>
-                </div>
-            `).join('');
+            
+            // Show most recent first
+            const reversed = [...evolutionData].reverse();
+            container.innerHTML = reversed.map(d => {
+                const time = new Date(d.time * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                return `<div class="history-item">
+                    <span class="history-time">${time}</span>
+                    <span class="history-r">R: $${(d.r/1000).toFixed(1)}K</span>
+                    <span class="history-s">S: $${(d.s/1000).toFixed(1)}K</span>
+                </div>`;
+            }).join('');
         }
-
+        
+        function updateCountdown() {
+            if (nextUpdateTime) {
+                const secs = Math.max(0, Math.floor((nextUpdateTime - Date.now()) / 1000));
+                const mins = Math.floor(secs / 60);
+                const s = secs % 60;
+                document.getElementById('stat-next').textContent = `${mins}:${s.toString().padStart(2, '0')}`;
+            }
+        }
+        
         // ═══════════════════════════════════════════════════════════════════════════════
-        // EVENT LISTENERS
+        // EVENTS
         // ═══════════════════════════════════════════════════════════════════════════════
-
+        
         document.querySelectorAll('[data-tf]').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('[data-tf]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 timeframe = btn.dataset.tf;
-                fetchCandles().then(connectWS);
+                fetchCandles().then(() => {
+                    updateEvolutionLines();
+                    connectWS();
+                });
             });
         });
-
-        document.getElementById('btn-refresh').addEventListener('click', fetchAndCalculateLevels);
-
+        
+        document.getElementById('btn-refresh').addEventListener('click', fetchAndCalculate);
+        
         // ═══════════════════════════════════════════════════════════════════════════════
         // INIT
         // ═══════════════════════════════════════════════════════════════════════════════
-
+        
         initChart();
         fetchCandles().then(() => {
             connectWS();
-            fetchAndCalculateLevels();
+            fetchAndCalculate();
         });
-
-        // Auto-update every minute
-        setInterval(fetchAndCalculateLevels, UPDATE_INTERVAL_MS);
-        setInterval(updateNextTime, 1000);
+        
+        setInterval(fetchAndCalculate, UPDATE_INTERVAL_MS);
+        setInterval(updateCountdown, 1000);
     </script>
 </body>
 
