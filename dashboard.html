@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Options Levels Dashboard</title>
+    <title>Options Levels Tracker - Dashboard</title>
     <style>
         * {
             margin: 0;
@@ -25,35 +25,33 @@
         .header {
             background: #1e222d;
             border-bottom: 1px solid #363a45;
-            padding: 10px 20px;
+            padding: 8px 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            height: 48px;
         }
 
         .logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
             font-weight: 600;
-            font-size: 16px;
+            font-size: 15px;
         }
 
         .price-box {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
         }
 
         .price {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 700;
         }
 
         .change {
-            padding: 4px 10px;
+            padding: 3px 8px;
             border-radius: 4px;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
         }
 
@@ -71,7 +69,7 @@
             display: flex;
             align-items: center;
             gap: 6px;
-            font-size: 12px;
+            font-size: 11px;
             color: #787b86;
         }
 
@@ -91,7 +89,7 @@
             }
 
             50% {
-                opacity: 0.5;
+                opacity: 0.4;
             }
         }
 
@@ -111,21 +109,20 @@
 
         .toolbar {
             background: #1e222d;
-            padding: 8px 15px;
+            padding: 6px 12px;
             display: flex;
-            gap: 6px;
+            gap: 4px;
             border-bottom: 1px solid #363a45;
         }
 
         .toolbar button {
-            padding: 6px 14px;
+            padding: 5px 12px;
             background: #2a2e39;
             border: 1px solid #363a45;
             color: #d1d4dc;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 12px;
-            transition: all 0.15s;
+            font-size: 11px;
         }
 
         .toolbar button:hover {
@@ -139,60 +136,72 @@
 
         #chart {
             flex: 1;
-            background: #131722;
         }
 
         /* Sidebar */
         .sidebar {
-            width: 250px;
+            width: 280px;
             background: #1e222d;
             border-left: 1px solid #363a45;
             overflow-y: auto;
+            font-size: 12px;
         }
 
         .panel {
             border-bottom: 1px solid #363a45;
-            padding: 14px;
+            padding: 12px;
         }
 
         .panel-title {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
             color: #787b86;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
             letter-spacing: 0.5px;
         }
 
+        /* Levels */
         .level {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 12px;
+            padding: 6px 8px;
             background: #2a2e39;
-            border-radius: 6px;
-            margin-bottom: 8px;
+            border-radius: 4px;
+            margin-bottom: 4px;
         }
 
         .level-label {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 13px;
+            gap: 6px;
         }
 
         .dot {
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
         }
 
         .dot.r {
-            background: #26a69a;
+            background: #00ff00;
         }
 
         .dot.s {
-            background: #ef5350;
+            background: #ff0000;
+        }
+
+        .dot.bg {
+            background: #00bcd4;
+        }
+
+        .dot.sg {
+            background: #ff9800;
+        }
+
+        .dot.mid {
+            background: #808080;
         }
 
         .dot.c {
@@ -200,17 +209,29 @@
         }
 
         .level-value {
-            font-size: 14px;
             font-weight: 600;
-            font-family: 'Monaco', 'Menlo', monospace;
+            font-family: 'Monaco', monospace;
+            font-size: 11px;
         }
 
         .level-value.r {
-            color: #26a69a;
+            color: #00ff00;
         }
 
         .level-value.s {
-            color: #ef5350;
+            color: #ff0000;
+        }
+
+        .level-value.bg {
+            color: #00bcd4;
+        }
+
+        .level-value.sg {
+            color: #ff9800;
+        }
+
+        .level-value.mid {
+            color: #808080;
         }
 
         .level-value.c {
@@ -219,33 +240,33 @@
 
         /* Position Bar */
         .position-bar {
-            height: 8px;
+            height: 6px;
             background: #2a2e39;
-            border-radius: 4px;
-            margin: 15px 0 8px;
+            border-radius: 3px;
+            margin: 10px 0 6px;
             position: relative;
         }
 
         .position-fill {
             height: 100%;
-            background: linear-gradient(90deg, #ef5350, #ffd600, #26a69a);
-            border-radius: 4px;
+            background: linear-gradient(90deg, #ff0000, #ffd600, #00ff00);
+            border-radius: 3px;
         }
 
         .position-marker {
             position: absolute;
-            top: -3px;
-            width: 6px;
-            height: 14px;
+            top: -2px;
+            width: 4px;
+            height: 10px;
             background: #2962ff;
-            border-radius: 3px;
+            border-radius: 2px;
             transform: translateX(-50%);
-            box-shadow: 0 0 6px rgba(41, 98, 255, 0.5);
+            box-shadow: 0 0 4px rgba(41, 98, 255, 0.5);
         }
 
         .position-text {
             text-align: center;
-            font-size: 12px;
+            font-size: 11px;
             color: #787b86;
         }
 
@@ -254,35 +275,129 @@
             font-weight: 600;
         }
 
-        /* Info Grid */
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
+        /* Stats Table */
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid #2a2e39;
         }
 
-        .info-item {
-            background: #2a2e39;
-            padding: 10px;
-            border-radius: 6px;
+        .stats-row:last-child {
+            border-bottom: none;
         }
 
-        .info-label {
-            font-size: 10px;
+        .stats-label {
             color: #787b86;
-            margin-bottom: 3px;
         }
 
-        .info-value {
-            font-size: 13px;
+        .stats-value {
             font-weight: 500;
+        }
+
+        .stats-value.green {
+            color: #4caf50;
+        }
+
+        .stats-value.red {
+            color: #f44336;
+        }
+
+        .stats-value.yellow {
+            color: #ffeb3b;
+        }
+
+        .stats-value.blue {
+            color: #2196f3;
+        }
+
+        .stats-value.orange {
+            color: #ff9800;
+        }
+
+        /* Toggle */
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 32px;
+            height: 18px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background: #2a2e39;
+            border-radius: 18px;
+            transition: 0.2s;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 12px;
+            width: 12px;
+            left: 3px;
+            bottom: 3px;
+            background: #787b86;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+
+        .toggle-switch input:checked+.toggle-slider {
+            background: #2962ff;
+        }
+
+        .toggle-switch input:checked+.toggle-slider:before {
+            transform: translateX(14px);
+            background: white;
+        }
+
+        /* Intraday History */
+        .history-list {
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 6px;
+            background: #2a2e39;
+            border-radius: 3px;
+            margin-bottom: 3px;
+            font-size: 10px;
+        }
+
+        .history-time {
+            color: #787b86;
+        }
+
+        .history-r {
+            color: #00ff00;
+        }
+
+        .history-s {
+            color: #ff0000;
         }
     </style>
 </head>
 
 <body>
     <header class="header">
-        <div class="logo">📊 Options Levels Dashboard</div>
+        <div class="logo">📊 Options Levels Tracker</div>
         <div class="price-box">
             <span class="price" id="price">$---,---</span>
             <span class="change up" id="change">+0.00%</span>
@@ -307,28 +422,43 @@
         </div>
 
         <aside class="sidebar">
+            <!-- Current Levels -->
             <div class="panel">
-                <div class="panel-title">📊 Options Levels</div>
+                <div class="panel-title">📊 Current Levels (Tomorrow Expiry)</div>
 
                 <div class="level">
                     <div class="level-label">
                         <div class="dot r"></div> Resistance
                     </div>
-                    <span class="level-value r" id="resistance">$---</span>
+                    <span class="level-value r" id="r-val">$---</span>
                 </div>
 
                 <div class="level">
                     <div class="level-label">
-                        <div class="dot c"></div> Current
+                        <div class="dot bg"></div> Buyer Gamma
                     </div>
-                    <span class="level-value c" id="current">$---</span>
+                    <span class="level-value bg" id="bg-val">$---</span>
+                </div>
+
+                <div class="level">
+                    <div class="level-label">
+                        <div class="dot c"></div> Current Price
+                    </div>
+                    <span class="level-value c" id="c-val">$---</span>
+                </div>
+
+                <div class="level">
+                    <div class="level-label">
+                        <div class="dot sg"></div> Seller Gamma
+                    </div>
+                    <span class="level-value sg" id="sg-val">$---</span>
                 </div>
 
                 <div class="level">
                     <div class="level-label">
                         <div class="dot s"></div> Support
                     </div>
-                    <span class="level-value s" id="support">$---</span>
+                    <span class="level-value s" id="s-val">$---</span>
                 </div>
 
                 <div class="position-bar">
@@ -338,25 +468,119 @@
                 <div class="position-text"><span class="position-pct" id="pct">--</span>% in range</div>
             </div>
 
+            <!-- Display Options -->
+            <div class="panel">
+                <div class="panel-title">⚙️ Display Options</div>
+
+                <div class="toggle-row">
+                    <span>Resistance Line</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="show-r" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-row">
+                    <span>Support Line</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="show-s" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-row">
+                    <span>Buyer Gamma</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="show-bg" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-row">
+                    <span>Seller Gamma</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="show-sg" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-row">
+                    <span>Range Zone</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="show-zone" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Statistics (like your Pine Script panel) -->
             <div class="panel">
                 <div class="panel-title">📈 Statistics</div>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Range</div>
-                        <div class="info-value" id="range">$---</div>
+
+                <div class="stats-row">
+                    <span class="stats-label">Today's Range</span>
+                    <span class="stats-value yellow" id="stat-range">$---</span>
+                </div>
+
+                <div class="stats-row">
+                    <span class="stats-label">Resistance Trend</span>
+                    <span class="stats-value" id="stat-r-trend">--</span>
+                </div>
+
+                <div class="stats-row">
+                    <span class="stats-label">Support Trend</span>
+                    <span class="stats-value" id="stat-s-trend">--</span>
+                </div>
+
+                <div class="stats-row">
+                    <span class="stats-label">Market Bias</span>
+                    <span class="stats-value" id="stat-bias">⚪ Neutral</span>
+                </div>
+
+                <div class="stats-row">
+                    <span class="stats-label">Dist to R</span>
+                    <span class="stats-value green" id="stat-dist-r">--%</span>
+                </div>
+
+                <div class="stats-row">
+                    <span class="stats-label">Dist to S</span>
+                    <span class="stats-value red" id="stat-dist-s">--%</span>
+                </div>
+
+                <div class="stats-row">
+                    <span class="stats-label">Position</span>
+                    <span class="stats-value yellow" id="stat-pos">--</span>
+                </div>
+            </div>
+
+            <!-- Intraday Level Changes -->
+            <div class="panel">
+                <div class="panel-title">🔄 Intraday Changes</div>
+                <div class="history-list" id="history-list">
+                    <div class="history-item">
+                        <span class="history-time">Monitoring...</span>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Expiry</div>
-                        <div class="info-value" id="expiry">--/--</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Updated</div>
-                        <div class="info-value" id="updated">--:--</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">History</div>
-                        <div class="info-value" id="history">-- days</div>
-                    </div>
+                </div>
+            </div>
+
+            <!-- Data Info -->
+            <div class="panel">
+                <div class="panel-title">ℹ️ Data Info</div>
+                <div class="stats-row">
+                    <span class="stats-label">Source</span>
+                    <span class="stats-value">Thales OSS</span>
+                </div>
+                <div class="stats-row">
+                    <span class="stats-label">Expiry Date</span>
+                    <span class="stats-value" id="info-expiry">--/--</span>
+                </div>
+                <div class="stats-row">
+                    <span class="stats-label">Last Update</span>
+                    <span class="stats-value" id="info-update">--:--:--</span>
+                </div>
+                <div class="stats-row">
+                    <span class="stats-label">Status</span>
+                    <span class="stats-value green">🟢 Active</span>
                 </div>
             </div>
         </aside>
@@ -364,13 +588,22 @@
 
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <script>
-        // State
-        let chart, candleSeries, resistanceLine, supportLine;
-        let resistance = 0, support = 0, currentPrice = 0;
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // STATE
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        let chart, candleSeries;
+        let rLine, sLine, bgLine, sgLine;
+        let currentLevels = { r: 0, s: 0, bg: 0, sg: 0 };
+        let currentPrice = 0;
         let timeframe = '15';
         let ws = null;
+        let intradayHistory = [];
         
-        // Initialize chart
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // CHART INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
         function initChart() {
             const container = document.getElementById('chart');
             
@@ -400,42 +633,80 @@
                 wickDownColor: '#ef5350',
             });
             
-            // Handle resize
             new ResizeObserver(() => {
                 chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
             }).observe(container);
         }
         
-        // Draw level lines
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // DRAW LEVEL LINES
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
         function drawLevels() {
             // Remove old lines
-            if (resistanceLine) candleSeries.removePriceLine(resistanceLine);
-            if (supportLine) candleSeries.removePriceLine(supportLine);
+            if (rLine) candleSeries.removePriceLine(rLine);
+            if (sLine) candleSeries.removePriceLine(sLine);
+            if (bgLine) candleSeries.removePriceLine(bgLine);
+            if (sgLine) candleSeries.removePriceLine(sgLine);
             
-            if (resistance > 0) {
-                resistanceLine = candleSeries.createPriceLine({
-                    price: resistance,
-                    color: '#26a69a',
+            const showR = document.getElementById('show-r').checked;
+            const showS = document.getElementById('show-s').checked;
+            const showBG = document.getElementById('show-bg').checked;
+            const showSG = document.getElementById('show-sg').checked;
+            
+            // Resistance (green)
+            if (showR && currentLevels.r > 0) {
+                rLine = candleSeries.createPriceLine({
+                    price: currentLevels.r,
+                    color: '#00ff00',
                     lineWidth: 2,
-                    lineStyle: 0, // Solid
+                    lineStyle: 0,
                     axisLabelVisible: true,
                     title: 'R',
                 });
             }
             
-            if (support > 0) {
-                supportLine = candleSeries.createPriceLine({
-                    price: support,
-                    color: '#ef5350',
+            // Support (red)
+            if (showS && currentLevels.s > 0) {
+                sLine = candleSeries.createPriceLine({
+                    price: currentLevels.s,
+                    color: '#ff0000',
                     lineWidth: 2,
                     lineStyle: 0,
                     axisLabelVisible: true,
                     title: 'S',
                 });
             }
+            
+            // Buyer Gamma (cyan, dashed)
+            if (showBG && currentLevels.bg > 0) {
+                bgLine = candleSeries.createPriceLine({
+                    price: currentLevels.bg,
+                    color: '#00bcd4',
+                    lineWidth: 1,
+                    lineStyle: 2, // Dashed
+                    axisLabelVisible: true,
+                    title: 'BG',
+                });
+            }
+            
+            // Seller Gamma (orange, dashed)
+            if (showSG && currentLevels.sg > 0) {
+                sgLine = candleSeries.createPriceLine({
+                    price: currentLevels.sg,
+                    color: '#ff9800',
+                    lineWidth: 1,
+                    lineStyle: 2,
+                    axisLabelVisible: true,
+                    title: 'SG',
+                });
+            }
         }
         
-        // Fetch candles
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // FETCH CANDLES
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
         async function fetchCandles() {
             const interval = timeframe === 'D' ? '1d' : timeframe + 'm';
             const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=500`);
@@ -453,7 +724,10 @@
             chart.timeScale().fitContent();
         }
         
-        // WebSocket for live candles
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // WEBSOCKET FOR LIVE CANDLES
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
         function connectWS() {
             if (ws) ws.close();
             
@@ -476,9 +750,13 @@
             };
             
             ws.onopen = () => document.getElementById('status').textContent = 'Live';
+            ws.onerror = () => document.getElementById('status').textContent = 'Reconnecting...';
         }
         
-        // Fetch levels
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // FETCH LEVELS FROM GITHUB (will be replaced with real-time Thales fetch later)
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
         async function fetchLevels() {
             try {
                 const res = await fetch('https://raw.githubusercontent.com/mabkkhome-lgtm/deribit-options-data/main/data/btc_levels.csv?t=' + Date.now());
@@ -487,40 +765,106 @@
                 
                 if (lines.length > 1) {
                     const last = lines[lines.length - 1].split(',');
-                    resistance = parseFloat(last[1]);
-                    support = parseFloat(last[2]);
+                    const newR = parseFloat(last[1]);
+                    const newS = parseFloat(last[2]);
+                    const newBG = last.length >= 4 ? parseFloat(last[3]) : newR;
+                    const newSG = last.length >= 5 ? parseFloat(last[4]) : newS;
                     
-                    document.getElementById('expiry').textContent = last[0];
-                    document.getElementById('history').textContent = (lines.length - 1) + ' days';
-                    document.getElementById('updated').textContent = new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+                    // Check if levels changed
+                    if (newR !== currentLevels.r || newS !== currentLevels.s) {
+                        // Add to history
+                        if (currentLevels.r > 0) {
+                            intradayHistory.unshift({
+                                time: new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', second:'2-digit'}),
+                                r: newR,
+                                s: newS
+                            });
+                            if (intradayHistory.length > 20) intradayHistory.pop();
+                            updateHistory();
+                        }
+                    }
+                    
+                    currentLevels = { r: newR, s: newS, bg: newBG, sg: newSG };
+                    
+                    document.getElementById('info-expiry').textContent = last[0];
+                    document.getElementById('info-update').textContent = new Date().toLocaleTimeString();
                     
                     drawLevels();
                     updateUI();
+                    updateStats();
                 }
             } catch (e) {
                 console.error('Error fetching levels:', e);
             }
         }
         
-        // Update UI
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // UPDATE UI
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
         function updateUI() {
             const fmt = (n) => '$' + n.toLocaleString('en-US', {maximumFractionDigits: 0});
             
             document.getElementById('price').textContent = fmt(currentPrice);
-            document.getElementById('current').textContent = fmt(currentPrice);
-            document.getElementById('resistance').textContent = fmt(resistance);
-            document.getElementById('support').textContent = fmt(support);
-            document.getElementById('range').textContent = fmt(resistance - support);
+            document.getElementById('c-val').textContent = fmt(currentPrice);
+            document.getElementById('r-val').textContent = fmt(currentLevels.r);
+            document.getElementById('s-val').textContent = fmt(currentLevels.s);
+            document.getElementById('bg-val').textContent = fmt(currentLevels.bg);
+            document.getElementById('sg-val').textContent = fmt(currentLevels.sg);
             
-            if (resistance > support && currentPrice > 0) {
-                const pct = ((currentPrice - support) / (resistance - support)) * 100;
+            // Position
+            if (currentLevels.r > currentLevels.s && currentPrice > 0) {
+                const range = currentLevels.r - currentLevels.s;
+                const pct = ((currentPrice - currentLevels.s) / range) * 100;
                 const clamped = Math.max(0, Math.min(100, pct));
                 document.getElementById('marker').style.left = clamped + '%';
                 document.getElementById('pct').textContent = pct.toFixed(1);
             }
         }
         
-        // Toolbar
+        function updateStats() {
+            const r = currentLevels.r;
+            const s = currentLevels.s;
+            const range = r - s;
+            
+            document.getElementById('stat-range').textContent = '$' + range.toLocaleString();
+            
+            // Distance to R/S
+            if (currentPrice > 0 && r > 0 && s > 0) {
+                const distR = ((r - currentPrice) / currentPrice * 100).toFixed(2);
+                const distS = ((currentPrice - s) / currentPrice * 100).toFixed(2);
+                document.getElementById('stat-dist-r').textContent = distR + '%';
+                document.getElementById('stat-dist-s').textContent = distS + '%';
+                
+                // Position text
+                const pct = ((currentPrice - s) / range) * 100;
+                let posText = '⚪ Mid';
+                if (pct > 66) posText = '🔴 Near R';
+                else if (pct < 33) posText = '🟢 Near S';
+                document.getElementById('stat-pos').textContent = posText + ' ' + pct.toFixed(1) + '%';
+            }
+        }
+        
+        function updateHistory() {
+            const container = document.getElementById('history-list');
+            if (intradayHistory.length === 0) {
+                container.innerHTML = '<div class="history-item"><span class="history-time">No changes yet</span></div>';
+                return;
+            }
+            
+            container.innerHTML = intradayHistory.map(h => `
+                <div class="history-item">
+                    <span class="history-time">${h.time}</span>
+                    <span class="history-r">R: ${(h.r/1000).toFixed(1)}K</span>
+                    <span class="history-s">S: ${(h.s/1000).toFixed(1)}K</span>
+                </div>
+            `).join('');
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // EVENT LISTENERS
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
         document.querySelectorAll('[data-tf]').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('[data-tf]').forEach(b => b.classList.remove('active'));
@@ -533,14 +877,22 @@
             });
         });
         
-        // Init
+        // Toggle handlers
+        ['show-r', 'show-s', 'show-bg', 'show-sg', 'show-zone'].forEach(id => {
+            document.getElementById(id).addEventListener('change', drawLevels);
+        });
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // INIT
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
         initChart();
         fetchCandles().then(() => {
             fetchLevels();
             connectWS();
         });
         
-        // Refresh levels every 30 seconds
+        // Fetch levels every 30 seconds (will become every minute with real Thales API)
         setInterval(fetchLevels, 30000);
     </script>
 </body>
