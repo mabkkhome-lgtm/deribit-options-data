@@ -1,0 +1,39 @@
+name: Update Deribit Options Data
+
+on:
+  schedule:
+    # Run every 4 hours (0:00, 4:00, 8:00, 12:00, 16:00, 20:00 UTC)
+    - cron: '0 */4 * * *'
+  
+  # Allow manual trigger from GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install requests
+      
+      - name: Fetch Deribit data
+        run: python fetch_deribit.py
+      
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "🔄 Update BTC options levels - ${{ github.run_id }}"
+          file_pattern: "data/*.csv"
+          commit_user_name: "GitHub Actions Bot"
+          commit_user_email: "actions@github.com"
