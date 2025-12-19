@@ -1,21 +1,19 @@
 #!/usr/bin/env python3
 """
-Thales OSS Data Fetcher
-=======================
+Thales OSS Data Fetcher - v3
+============================
 Fetches BTC options data from Thales OSS API and calculates:
 - Top Range (Resistance): Right intersection of buyer/seller PnL curves
 - Bottom Range (Support): Left intersection of buyer/seller PnL curves
 
-The convergence points represent where buyers and sellers agree on price.
+Entry prices in Thales data are in USD.
 
 Output: CSV file compatible with TradingView Options Levels Tracker indicator
 """
 
 import requests
-import math
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from collections import defaultdict
 
 # Thales OSS API Configuration
 THALES_API_URL = "https://oss.thales-mfi.com/api/MarketScreener"
@@ -30,13 +28,12 @@ def get_start_of_today_utc():
     """Get timestamp for 00:00 UTC today."""
     now = datetime.now(timezone.utc)
     start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    return int(start_of_day.timestamp() * 1000)  # Thales uses milliseconds
+    return int(start_of_day.timestamp() * 1000)
 
 
 def get_tomorrow_expiry_code():
     """Get the expiry date code for tomorrow (days since epoch)."""
     tomorrow = datetime.now(timezone.utc) + timedelta(days=1)
-    # Thales uses days since Unix epoch for expiry codes
     epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
     days_since_epoch = (tomorrow - epoch).days
     return days_since_epoch, tomorrow.strftime("%d/%m/%Y")
@@ -49,41 +46,38 @@ def fetch_options_data():
     
     url = f"{THALES_API_URL}/FetchOptions"
     params = {
-        "source": 1,  # Deribit
+        "source": 1,
         "fromDate": from_timestamp,
         "toDate": to_timestamp
     }
     
-    print(f"📊 Fetching data from {datetime.fromtimestamp(from_timestamp/1000, tz=timezone.utc)}")
-    print(f"   to {datetime.fromtimestamp(to_timestamp/1000, tz=timezone.utc)}")
+    print(f"📊 Fetching from {datetime.fromtimestamp(from_timestamp/1000, tz=timezone.utc)}")
     
     response = requests.get(url, params=params)
     
     if response.status_code != 200:
-        raise Exception(f"Failed to fetch data: {response.status_code} - {response.text}")
+        raise Exception(f"Failed to fetch: {response.status_code}")
     
     return response.text
 
 
 def parse_options_csv(csv_data, target_expiry_code):
     """
-    Parse Thales CSV data and filter for tomorrow's expiry.
+    Parse Thales CSV data.
     
-    CSV Format (inferred):
+    CSV Format:
     - Column 0: Type (0=Call, 1=Put)
-    - Column 1: Expiry Date Code (days since epoch)
-    - Column 2: Strike Price
+    - Column 1: Expiry Date Code
+    - Column 2: Strike Price (USD)
     - Column 3: Trade ID/Timestamp
     - Column 4: Side (0=Long/Buyer, 1=Short/Seller)
-    - Column 5: Size
-    - Column 6: Entry Price
+    - Column 5: Size (BTC contracts)
+    - Column 6: Entry Price (USD per contract)
     """
-    longs = []  # Buyer positions
-    shorts = []  # Seller positions
+    longs = []
+    shorts = []
     
-    lines = csv_data.strip().split('\n')
-    
-    for line in lines:
+    for line in csv_data.strip().split('\n'):
         if not line.strip():
             continue
             
@@ -92,14 +86,13 @@ def parse_options_csv(csv_data, target_expiry_code):
             continue
         
         try:
-            option_type = int(parts[0])  # 0=Call, 1=Put
+            option_type = int(parts[0])
             expiry_code = int(parts[1])
             strike = float(parts[2])
-            side = int(parts[4])  # 0=Long, 1=Short
+            side = int(parts[4])
             size = float(parts[5])
-            entry_price = float(parts[6])
+            entry_price_usd = float(parts[6])  # Already in USD!
             
-            # Filter for tomorrow's expiry only
             if expiry_code != target_expiry_code:
                 continue
             
@@ -107,124 +100,112 @@ def parse_options_csv(csv_data, target_expiry_code):
                 'type': 'call' if option_type == 0 else 'put',
                 'strike': strike,
                 'size': size,
-                'entry_price': entry_price
+                'premium_usd': entry_price_usd  # Premium in USD
             }
             
-            if side == 0:  # Long/Buyer
+            if side == 0:
                 longs.append(position)
-            else:  # Short/Seller
+            else:
                 shorts.append(position)
                 
-        except (ValueError, IndexError) as e:
+        except (ValueError, IndexError):
             continue
     
     return longs, shorts
 
 
-def calculate_pnl_at_price(positions, underlying_price):
+def calculate_pnl_at_expiry(positions, underlying_price, is_buyer=True):
     """
-    Calculate total PnL at expiry for a group of positions at a given underlying price.
+    Calculate total PnL at expiry (in USD).
     
-    For CALLS at expiry:
-        PnL = Size * (max(S - K, 0) - EntryPrice) * 100
+    For BUYER (Long):
+        Call: max(S - K, 0) - Premium
+        Put:  max(K - S, 0) - Premium
         
-    For PUTS at expiry:
-        PnL = Size * (max(K - S, 0) - EntryPrice) * 100
+    For SELLER (Short):
+        Call: Premium - max(S - K, 0)
+        Put:  Premium - max(K - S, 0)
         
-    Where S = underlying price, K = strike, EntryPrice = premium paid
+    All values in USD. Size multiplies the per-contract PnL.
     """
     total_pnl = 0
     
     for pos in positions:
         strike = pos['strike']
         size = pos['size']
-        entry = pos['entry_price']
+        premium = pos['premium_usd']
         
         if pos['type'] == 'call':
-            # Call payoff at expiry
             intrinsic = max(underlying_price - strike, 0)
-            pnl = size * (intrinsic - entry) * 100
-        else:
-            # Put payoff at expiry
+        else:  # put
             intrinsic = max(strike - underlying_price, 0)
-            pnl = size * (intrinsic - entry) * 100
+        
+        if is_buyer:
+            # Buyer paid premium, receives intrinsic value
+            pnl = (intrinsic - premium) * size
+        else:
+            # Seller received premium, pays out intrinsic value
+            pnl = (premium - intrinsic) * size
         
         total_pnl += pnl
     
     return total_pnl
 
 
-def find_convergence_points(longs, shorts, price_range=(50000, 150000), step=100):
+def find_convergence_points(longs, shorts):
     """
     Find where buyer (long) and seller (short) PnL curves intersect.
-    
-    Returns:
-        (left_convergence, right_convergence) - the two price points where curves meet
-        left = bottom range (support), right = top range (resistance)
     """
-    intersections = []
-    prev_diff = None
+    # Get all strikes for range estimation
+    all_strikes = [p['strike'] for p in longs + shorts]
+    if not all_strikes:
+        return 85000, 100000
     
-    for price in range(price_range[0], price_range[1], step):
-        long_pnl = calculate_pnl_at_price(longs, price)
-        short_pnl = calculate_pnl_at_price(shorts, price)
+    min_strike = min(all_strikes)
+    max_strike = max(all_strikes)
+    
+    # Search range
+    price_min = int(min_strike * 0.90)
+    price_max = int(max_strike * 1.10)
+    
+    # Calculate PnL at many price points (10 USD steps for precision)
+    step = 10
+    prices = list(range(price_min, price_max, step))
+    
+    # Track crossings
+    intersections = []
+    prev_long_pnl = None
+    prev_short_pnl = None
+    
+    for price in prices:
+        long_pnl = calculate_pnl_at_expiry(longs, price, is_buyer=True)
+        short_pnl = calculate_pnl_at_expiry(shorts, price, is_buyer=False)
         
-        diff = long_pnl - short_pnl
-        
-        if prev_diff is not None:
+        if prev_long_pnl is not None:
+            prev_diff = prev_long_pnl - prev_short_pnl
+            curr_diff = long_pnl - short_pnl
+            
             # Check for sign change (crossing)
-            if prev_diff * diff < 0:
-                # Intersection found - refine it
-                refined_price = refine_intersection(longs, shorts, price - step, price)
-                intersections.append(refined_price)
+            if prev_diff * curr_diff < 0:
+                # Linear interpolation
+                t = abs(prev_diff) / (abs(prev_diff) + abs(curr_diff))
+                crossing_price = (price - step) + t * step
+                intersections.append(int(crossing_price))
         
-        prev_diff = diff
+        prev_long_pnl = long_pnl
+        prev_short_pnl = short_pnl
+    
+    print(f"   Found {len(intersections)} intersection points: {intersections}")
     
     if len(intersections) >= 2:
-        return int(intersections[0]), int(intersections[-1])
+        return intersections[0], intersections[-1]
     elif len(intersections) == 1:
-        return int(intersections[0]), int(intersections[0])
+        return intersections[0], intersections[0]
     else:
-        # No clear intersection - return the price range center
-        center = (price_range[0] + price_range[1]) // 2
-        return center, center
-
-
-def refine_intersection(longs, shorts, low_price, high_price, tolerance=10):
-    """Binary search to find precise intersection point."""
-    while high_price - low_price > tolerance:
-        mid = (low_price + high_price) / 2
-        
-        long_pnl = calculate_pnl_at_price(longs, mid)
-        short_pnl = calculate_pnl_at_price(shorts, mid)
-        
-        low_long_pnl = calculate_pnl_at_price(longs, low_price)
-        low_short_pnl = calculate_pnl_at_price(shorts, low_price)
-        
-        low_diff = low_long_pnl - low_short_pnl
-        mid_diff = long_pnl - short_pnl
-        
-        if low_diff * mid_diff < 0:
-            high_price = mid
-        else:
-            low_price = mid
-    
-    return (low_price + high_price) / 2
-
-
-def get_current_btc_price():
-    """Get current BTC price from Thales API for reference."""
-    try:
-        url = f"{THALES_API_URL}/InstrumentPrices"
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            # Look for BTC price in the response
-            if isinstance(data, dict) and 'underlying' in data:
-                return data['underlying']
-        return None
-    except:
-        return None
+        # Fallback: weighted average of strikes
+        print("   ⚠️ No intersections found, using weighted average")
+        mean_strike = sum(all_strikes) / len(all_strikes)
+        return int(mean_strike * 0.95), int(mean_strike * 1.05)
 
 
 def load_existing_data():
@@ -243,21 +224,16 @@ def load_existing_data():
 
 
 def save_data(existing_lines, new_line):
-    """Save data to CSV, keeping only last MAX_HISTORY_DAYS entries."""
+    """Save data to CSV."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     
-    # Extract date from new line
     new_date = new_line.split(',')[0]
-    
-    # Filter out any existing entries for the same date
     updated_lines = [line for line in existing_lines if not line.startswith(new_date)]
     updated_lines.append(new_line)
     
-    # Keep only last MAX_HISTORY_DAYS entries
     if len(updated_lines) > MAX_HISTORY_DAYS:
         updated_lines = updated_lines[-MAX_HISTORY_DAYS:]
     
-    # Write to file
     with open(OUTPUT_FILE, "w") as f:
         f.write("date,high,low,buyerGamma,sellerGamma\n")
         for line in updated_lines:
@@ -267,54 +243,33 @@ def save_data(existing_lines, new_line):
 
 
 def main():
-    """Main function to fetch and process Thales OSS data."""
+    """Main function."""
     print("=" * 60)
-    print("Thales OSS Options Data Fetcher")
+    print("Thales OSS Options Data Fetcher v3")
     print("=" * 60)
     
     try:
-        # Step 1: Get target expiry (tomorrow)
         expiry_code, expiry_date = get_tomorrow_expiry_code()
         print(f"\n📅 Target Expiry: {expiry_date} (code: {expiry_code})")
         
-        # Step 2: Fetch options data from Thales OSS
-        print("\n📈 Fetching options data from Thales OSS...")
+        print("\n📈 Fetching from Thales OSS...")
         csv_data = fetch_options_data()
         
         total_lines = len(csv_data.strip().split('\n'))
         print(f"   Received {total_lines} trade records")
         
-        # Step 3: Parse and filter for tomorrow's expiry
-        print("\n🔍 Filtering for tomorrow's expiry...")
+        print("\n🔍 Parsing positions for tomorrow's expiry...")
         longs, shorts = parse_options_csv(csv_data, expiry_code)
-        print(f"   Found {len(longs)} buyer (long) positions")
-        print(f"   Found {len(shorts)} seller (short) positions")
+        print(f"   Buyers (Long): {len(longs)} positions")
+        print(f"   Sellers (Short): {len(shorts)} positions")
         
         if len(longs) == 0 or len(shorts) == 0:
-            print("\n⚠️  Warning: Not enough positions for tomorrow's expiry.")
-            print("   This might happen early in the day or if there's no trading activity.")
-            print("   Using fallback values...")
-            
-            # Try to get current BTC price as fallback
-            btc_price = get_current_btc_price()
-            if btc_price:
-                bottom_range = int(btc_price * 0.97)  # -3%
-                top_range = int(btc_price * 1.03)  # +3%
-            else:
-                # Absolute fallback
-                bottom_range = 85000
-                top_range = 100000
+            print("\n⚠️  Not enough data, using defaults")
+            bottom_range = 85000
+            top_range = 100000
         else:
-            # Step 4: Find convergence points
-            print("\n🎯 Calculating convergence points...")
-            
-            # Determine price range based on strikes in data
-            all_strikes = [p['strike'] for p in longs + shorts]
-            min_strike = min(all_strikes)
-            max_strike = max(all_strikes)
-            price_range = (int(min_strike * 0.9), int(max_strike * 1.1))
-            
-            bottom_range, top_range = find_convergence_points(longs, shorts, price_range)
+            print("\n🎯 Finding convergence points...")
+            bottom_range, top_range = find_convergence_points(longs, shorts)
         
         print(f"""
    Results:
@@ -322,29 +277,17 @@ def main():
    Bottom Range (Support):  ${bottom_range:,}
    Top Range (Resistance):  ${top_range:,}
    ─────────────────────────────────
-   Expiry Date: {expiry_date}
-   Buyer Positions: {len(longs)}
-   Seller Positions: {len(shorts)}
 """)
         
-        # Step 5: Format and save data
-        # Note: buyerGamma and sellerGamma are set to same as ranges for now
-        # These could be calculated separately if needed
         new_line = f"{expiry_date},{top_range},{bottom_range},{top_range},{bottom_range}"
+        print(f"📝 CSV: {new_line}")
         
-        print(f"📝 CSV Line: {new_line}")
-        
-        # Load existing data and save
         existing_lines = load_existing_data()
         save_data(existing_lines, new_line)
         
         print("\n✅ Done!")
         
-        return {
-            'date': expiry_date,
-            'top_range': top_range,
-            'bottom_range': bottom_range
-        }
+        return {'date': expiry_date, 'top': top_range, 'bottom': bottom_range}
         
     except Exception as e:
         print(f"\n❌ Error: {e}")
