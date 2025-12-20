@@ -93,8 +93,10 @@ def parse_options_csv(csv_data, target_expiry_code):
             size = float(parts[5])
             entry_price_usd = float(parts[6])  # Already in USD!
             
-            if expiry_code != target_expiry_code:
+            # Include weekly expiries: today through +6 days
+            if expiry_code < target_expiry_code or expiry_code > target_expiry_code + 5:
                 continue
+
             
             position = {
                 'type': 'call' if option_type == 0 else 'put',
