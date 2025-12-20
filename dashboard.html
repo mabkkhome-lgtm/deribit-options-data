@@ -868,10 +868,107 @@
         function calcKC(candles, p = 20, m = 1.5) { const u = [], l = []; for (let i = p - 1; i < candles.length; i++) { const s = candles.slice(i - p + 1, i + 1); const ema = s.reduce((a, c) => a + c.close, 0) / p; const atr = s.reduce((a, c) => a + Math.max(c.high - c.low, Math.abs(c.high - (s[s.indexOf(c) - 1]?.close || c.close)), Math.abs(c.low - (s[s.indexOf(c) - 1]?.close || c.close))), 0) / p; u.push({ time: candles[i].time, value: ema + m * atr }); l.push({ time: candles[i].time, value: ema - m * atr }); } return { upper: u, lower: l }; }
         function calcSupertrend(candles, p = 10, m = 3) { const res = []; for (let i = p - 1; i < candles.length; i++) { const s = candles.slice(i - p + 1, i + 1); const atr = s.reduce((a, c) => a + (c.high - c.low), 0) / p; const hl2 = (candles[i].high + candles[i].low) / 2; const up = hl2 - m * atr, dn = hl2 + m * atr; res.push({ time: candles[i].time, value: candles[i].close > dn ? up : dn }); } return res; }
 
-        function getTomorrowExpiry() { const t = new Date(); t.setDate(t.getDate() + 1); t.setUTCHours(0, 0, 0, 0); return Math.floor((t - new Date(0)) / 864e5); }
-        function parseThalesCSV(csv, expiry) { const longs = [], shorts = []; let calls = 0, puts = 0, totalPremium = 0; const sm = {}; for (const ln of csv.trim().split('\n')) { const p = ln.split(','); if (p.length < 7) continue; try { if (parseInt(p[1]) !== expiry) continue; const t = p[0] === '0' ? 'call' : 'put', strike = +p[2], size = +p[5], prem = +p[6]; if (p[4] === '0') longs.push({ type: t, strike, size, premium: prem }); else shorts.push({ type: t, strike, size, premium: prem }); if (t === 'call') calls++; else puts++; totalPremium += prem * size; sm[strike] = (sm[strike] || 0) + size; } catch { } } const ts = Object.entries(sm).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([s, z]) => ({ strike: +s, size: z })); return { longs, shorts, calls, puts, totalPremium, topStrikes: ts }; }
-        function calcPnL(pos, price, buyer) { let t = 0; for (const p of pos) { const intr = p.type === 'call' ? Math.max(price - p.strike, 0) : Math.max(p.strike - price, 0); t += (buyer ? intr - p.premium : p.premium - intr) * p.size; } return t; }
-        function findLevels(longs, shorts) { const strikes = [...longs, ...shorts].map(p => p.strike); if (!strikes.length) return null; const min = Math.floor(Math.min(...strikes) * 0.85), max = Math.ceil(Math.max(...strikes) * 1.15), crosses = []; let prev = null; for (let pr = min; pr < max; pr += 50) { const d = calcPnL(longs, pr, true) - calcPnL(shorts, pr, false); if (prev !== null && prev * d < 0) crosses.push(pr); prev = d; } let r, s; if (crosses.length >= 2) { s = crosses[0]; r = crosses[crosses.length - 1]; } else if (crosses.length === 1) { s = r = crosses[0]; } else { const avg = strikes.reduce((a, b) => a + b, 0) / strikes.length; s = Math.round(avg * 0.97); r = Math.round(avg * 1.03); } const gp = (r + s) / 2, hw = (r - s) * 0.15; return { r, s, bg: Math.round(gp + hw), sg: Math.round(gp - hw) }; }
+
+        // Use TODAY's expiry instead of tomorrow (matching Thales)
+        function getTodayExpiry() { const t = new Date(); t.setUTCHours(0, 0, 0, 0); return Math.floor((t - new Date(0)) / 864e5); }
+
+        function parseThalesCSV(csv, expiry) {
+            const longs = [], shorts = [];
+            let calls = 0, puts = 0, totalPremium = 0;
+            const sm = {};
+            for (const ln of csv.trim().split('\n')) {
+                const p = ln.split(',');
+                if (p.length < 7) continue;
+                try {
+                    // Include TODAY's expiry AND tomorrow's (within 2 days)
+                    const expDay = parseInt(p[1]);
+                    if (expDay < expiry || expDay > expiry + 1) continue;
+
+                    const t = p[0] === '0' ? 'call' : 'put', strike = +p[2], size = +p[5], prem = +p[6];
+                    if (p[4] === '0') longs.push({ type: t, strike, size, premium: prem });
+                    else shorts.push({ type: t, strike, size, premium: prem });
+                    if (t === 'call') calls++; else puts++;
+                    totalPremium += prem * size;
+                    sm[strike] = (sm[strike] || 0) + size;
+                } catch { }
+            }
+            const ts = Object.entries(sm).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([s, z]) => ({ strike: +s, size: z }));
+            return { longs, shorts, calls, puts, totalPremium, topStrikes: ts };
+        }
+
+        function calcPnL(pos, price, buyer) {
+            let t = 0;
+            for (const p of pos) {
+                const intr = p.type === 'call' ? Math.max(price - p.strike, 0) : Math.max(p.strike - price, 0);
+                t += (buyer ? intr - p.premium : p.premium - intr) * p.size;
+            }
+            return t;
+        }
+
+        function findLevels(longs, shorts) {
+            const strikes = [...longs, ...shorts].map(p => p.strike);
+            if (!strikes.length) return null;
+
+            const min = Math.floor(Math.min(...strikes) * 0.9);
+            const max = Math.ceil(Math.max(...strikes) * 1.1);
+            const step = 100; // Higher precision
+
+            // Find all crossover points
+            const crosses = [];
+            let prev = null;
+            let maxBuyerPnL = -Infinity, maxBuyerPrice = min;
+            let minSellerPnL = Infinity, minSellerPrice = min;
+
+            for (let pr = min; pr < max; pr += step) {
+                const buyerPnL = calcPnL(longs, pr, true);
+                const sellerPnL = calcPnL(shorts, pr, false);
+                const diff = buyerPnL - sellerPnL;
+
+                // Track crossover points (where buyer and seller curves cross)
+                if (prev !== null && prev * diff < 0) {
+                    // Refine crossover with binary search
+                    let lo = pr - step, hi = pr;
+                    while (hi - lo > 10) {
+                        const mid = (lo + hi) / 2;
+                        const midDiff = calcPnL(longs, mid, true) - calcPnL(shorts, mid, false);
+                        if (midDiff * prev < 0) hi = mid;
+                        else lo = mid;
+                    }
+                    crosses.push(Math.round((lo + hi) / 2));
+                }
+
+                // Track max buyer PnL (gamma point)
+                if (buyerPnL > maxBuyerPnL) { maxBuyerPnL = buyerPnL; maxBuyerPrice = pr; }
+                if (sellerPnL < minSellerPnL) { minSellerPnL = sellerPnL; minSellerPrice = pr; }
+
+                prev = diff;
+            }
+
+            let r, s, bg, sg;
+
+            if (crosses.length >= 2) {
+                s = Math.round(crosses[0]);
+                r = Math.round(crosses[crosses.length - 1]);
+            } else if (crosses.length === 1) {
+                s = r = Math.round(crosses[0]);
+            } else {
+                const avg = strikes.reduce((a, b) => a + b, 0) / strikes.length;
+                s = Math.round(avg * 0.97);
+                r = Math.round(avg * 1.03);
+            }
+
+            // Gamma points: where buyer/seller have max exposure
+            bg = Math.round(maxBuyerPrice);
+            sg = Math.round(minSellerPrice);
+
+            // Ensure BG > SG, swap if needed
+            if (bg < sg) [bg, sg] = [sg, bg];
+
+            console.log(`🔍 Levels: R=${r}, S=${s}, BG=${bg}, SG=${sg} (${crosses.length} crosses)`);
+
+            return { r, s, bg, sg };
+        }
+
 
         async function calculateLive() {
             setStatus('Calculating...', true);
@@ -879,7 +976,7 @@
                 const now = new Date(), start = new Date(now);
                 start.setUTCHours(0, 0, 0, 0);
                 const res = await fetch(`${PROXY}${THALES_API}?source=1&fromDate=${start.getTime()}&toDate=${now.getTime()}`);
-                thalesData = parseThalesCSV(await res.text(), getTomorrowExpiry());
+                thalesData = parseThalesCSV(await res.text(), getTodayExpiry());
                 updateThalesUI();
                 if (thalesData.longs.length && thalesData.shorts.length) {
                     const lv = findLevels(thalesData.longs, thalesData.shorts);
@@ -900,7 +997,7 @@
 
                             // Update data points counter
                             document.getElementById('stat-days').textContent = historicalLevels.length;
-                            
+
                             console.log(`✅ ${now.toLocaleTimeString()} Added level: R=${lv.r} S=${lv.s} (${historicalLevels.length} points)`);
                         } else {
                             console.log(`⏩ ${now.toLocaleTimeString()} Skipped duplicate timestamp`);
