@@ -91,10 +91,11 @@
             display: flex;
             gap: 4px;
             border-bottom: 1px solid #363a45;
+            flex-wrap: wrap;
         }
 
         .toolbar button {
-            padding: 5px 12px;
+            padding: 5px 10px;
             background: #2a2e39;
             border: 1px solid #363a45;
             color: #d1d4dc;
@@ -118,12 +119,18 @@
             cursor: wait;
         }
 
+        .toolbar .sep {
+            width: 1px;
+            background: #363a45;
+            margin: 0 4px;
+        }
+
         #chart {
             flex: 1;
         }
 
         .sidebar {
-            width: 280px;
+            width: 300px;
             background: #1e222d;
             border-left: 1px solid #363a45;
             overflow-y: auto;
@@ -166,6 +173,14 @@
             color: #9c27b0;
         }
 
+        .level-value.green {
+            color: #4caf50;
+        }
+
+        .level-value.red {
+            color: #f44336;
+        }
+
         .stats-row {
             display: flex;
             justify-content: space-between;
@@ -182,13 +197,75 @@
             color: #4caf50;
         }
 
+        .stats-value.red {
+            color: #f44336;
+        }
+
         .stats-value.cyan {
             color: #00bcd4;
+        }
+
+        .stats-value.yellow {
+            color: #ffeb3b;
         }
 
         .btn-refresh {
             background: #2962ff !important;
             margin-left: auto;
+        }
+
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+        }
+
+        .toggle {
+            position: relative;
+            width: 36px;
+            height: 20px;
+            background: #363a45;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .toggle.on {
+            background: #2962ff;
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+
+        .toggle.on::after {
+            left: 18px;
+        }
+
+        .position-bar {
+            height: 8px;
+            background: linear-gradient(90deg, #9c27b0, #787b86, #2196f3);
+            border-radius: 4px;
+            margin: 8px 0;
+            position: relative;
+        }
+
+        .position-marker {
+            position: absolute;
+            top: -2px;
+            width: 4px;
+            height: 12px;
+            background: #fff;
+            border-radius: 2px;
+            transform: translateX(-50%);
         }
     </style>
 </head>
@@ -203,13 +280,19 @@
     <div class="main">
         <div class="chart-area">
             <div class="toolbar">
-                <button data-tf="1">1m</button>
-                <button data-tf="5">5m</button>
-                <button data-tf="15" class="active">15m</button>
-                <button data-tf="60">1H</button>
-                <button data-tf="240">4H</button>
-                <button data-tf="D">1D</button>
-                <button class="btn-refresh" id="btn-refresh">🔄 Update Now</button>
+                <button data-tf="1m">1m</button>
+                <button data-tf="3m">3m</button>
+                <button data-tf="5m">5m</button>
+                <button data-tf="15m" class="active">15m</button>
+                <button data-tf="30m">30m</button>
+                <div class="sep"></div>
+                <button data-tf="1h">1H</button>
+                <button data-tf="2h">2H</button>
+                <button data-tf="4h">4H</button>
+                <div class="sep"></div>
+                <button data-tf="1d">1D</button>
+                <button data-tf="1w">1W</button>
+                <button class="btn-refresh" id="btn-refresh">🔄 Update</button>
             </div>
             <div id="chart"></div>
         </div>
@@ -217,22 +300,46 @@
         <aside class="sidebar">
             <div class="panel">
                 <div class="panel-title">📊 Live Levels (Updated Every Minute)</div>
-                <div class="level"><span>Resistance</span><span class="level-value r" id="r-val">---</span></div>
-                <div class="level"><span>Support</span><span class="level-value s" id="s-val">---</span></div>
-                <div class="level"><span>Range</span><span class="level-value" id="range-val">$---</span></div>
+                <div class="level"><span>🔵 Resistance</span><span class="level-value r" id="r-val">---</span></div>
+                <div class="level"><span>🟣 Support</span><span class="level-value s" id="s-val">---</span></div>
+                <div class="level"><span>📏 Range</span><span class="level-value yellow" id="range-val">$---</span>
+                </div>
+                <div class="position-bar">
+                    <div class="position-marker" id="pos-marker" style="left:50%"></div>
+                </div>
+                <div class="level"><span>📍 Position</span><span class="level-value" id="pos-val">--% in range</span>
+                </div>
             </div>
 
             <div class="panel">
-                <div class="panel-title">📈 Stats</div>
+                <div class="panel-title">📈 Distance to Levels</div>
+                <div class="level"><span>↗️ To Resistance</span><span class="level-value green" id="dist-r">+---%</span>
+                </div>
+                <div class="level"><span>↘️ To Support</span><span class="level-value red" id="dist-s">---%</span></div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">📊 Thales Data</div>
+                <div class="stats-row"><span class="stats-label">Long Positions</span><span class="stats-value green"
+                        id="stat-longs">--</span></div>
+                <div class="stats-row"><span class="stats-label">Short Positions</span><span class="stats-value red"
+                        id="stat-shorts">--</span></div>
                 <div class="stats-row"><span class="stats-label">Historical Days</span><span id="stat-days">--</span>
                 </div>
-                <div class="stats-row"><span class="stats-label">Longs (Today)</span><span class="stats-value green"
-                        id="stat-longs">--</span></div>
-                <div class="stats-row"><span class="stats-label">Shorts (Today)</span><span class="stats-value"
-                        id="stat-shorts">--</span></div>
-                <div class="stats-row"><span class="stats-label">Last Calc</span><span id="stat-time">--:--</span></div>
+                <div class="stats-row"><span class="stats-label">Last Calculation</span><span
+                        id="stat-time">--:--</span></div>
                 <div class="stats-row"><span class="stats-label">Next Update</span><span class="stats-value cyan"
                         id="stat-next">--:--</span></div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">⚙️ Display Options</div>
+                <div class="toggle-row"><span>Show R Line</span>
+                    <div class="toggle on" id="toggle-r"></div>
+                </div>
+                <div class="toggle-row"><span>Show S Line</span>
+                    <div class="toggle on" id="toggle-s"></div>
+                </div>
             </div>
         </aside>
     </div>
@@ -246,19 +353,20 @@
         const CSV_URL = 'https://raw.githubusercontent.com/mabkkhome-lgtm/deribit-options-data/main/data/btc_levels.csv';
         const THALES_API = 'https://oss.thales-mfi.com/api/MarketScreener/FetchOptions';
         const PROXY = 'https://corsproxy.io/?';
-        const UPDATE_INTERVAL = 60000; // 1 minute
+        const UPDATE_INTERVAL = 60000;
         
         // ═══════════════════════════════════════════════════════════════════════════════
         // STATE
         // ═══════════════════════════════════════════════════════════════════════════════
         
         let chart, candleSeries, rSeries, sSeries;
-        let tf = '15';
+        let tf = '15m';
         let ws = null;
         let nextUpdate = null;
         let historicalLevels = [];
         let candleData = [];
-        let liveR = null, liveS = null;
+        let showR = true, showS = true;
+        let currentPrice = 0;
         
         // ═══════════════════════════════════════════════════════════════════════════════
         // THALES LIVE CALCULATION
@@ -269,7 +377,7 @@
             return Math.floor((t - new Date(0)) / 864e5);
         }
         
-        function parseCSV(csv, expiry) {
+        function parseThalesCSV(csv, expiry) {
             const longs = [], shorts = [];
             for (const line of csv.trim().split('\n')) {
                 const p = line.split(',');
@@ -322,34 +430,23 @@
                 const res = await fetch(url);
                 const csv = await res.text();
                 
-                const { longs, shorts } = parseCSV(csv, getTomorrowExpiry());
+                const { longs, shorts } = parseThalesCSV(csv, getTomorrowExpiry());
                 document.getElementById('stat-longs').textContent = longs.length;
                 document.getElementById('stat-shorts').textContent = shorts.length;
                 
                 if (longs.length && shorts.length) {
                     const levels = findLevels(longs, shorts);
                     if (levels) {
-                        liveR = levels.r;
-                        liveS = levels.s;
-                        
-                        // Update the latest historical entry with live data
                         const today = Math.floor(new Date().setUTCHours(0,0,0,0) / 1000);
                         const existing = historicalLevels.find(h => h.timestamp >= today);
-                        if (existing) {
-                            existing.r = liveR;
-                            existing.s = liveS;
-                        } else {
-                            historicalLevels.push({ timestamp: today, r: liveR, s: liveS });
-                            historicalLevels.sort((a, b) => a.timestamp - b.timestamp);
-                        }
+                        if (existing) { existing.r = levels.r; existing.s = levels.s; }
+                        else { historicalLevels.push({ timestamp: today, r: levels.r, s: levels.s }); historicalLevels.sort((a, b) => a.timestamp - b.timestamp); }
                         
-                        document.getElementById('r-val').textContent = '$' + liveR.toLocaleString();
-                        document.getElementById('s-val').textContent = '$' + liveS.toLocaleString();
-                        document.getElementById('range-val').textContent = '$' + (liveR - liveS).toLocaleString();
+                        updateLevelDisplay(levels.r, levels.s);
                         document.getElementById('stat-time').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
                         
                         rebuildLines();
-                        console.log(`✅ ${now.toLocaleTimeString()} R=${liveR} S=${liveS}`);
+                        console.log(`✅ ${now.toLocaleTimeString()} R=${levels.r} S=${levels.s}`);
                     }
                 }
                 setStatus('Live', false);
@@ -358,6 +455,25 @@
                 setStatus('Error', false);
             }
             nextUpdate = Date.now() + UPDATE_INTERVAL;
+        }
+        
+        function updateLevelDisplay(r, s) {
+            document.getElementById('r-val').textContent = '$' + r.toLocaleString();
+            document.getElementById('s-val').textContent = '$' + s.toLocaleString();
+            document.getElementById('range-val').textContent = '$' + (r - s).toLocaleString();
+            
+            if (currentPrice > 0) {
+                const range = r - s;
+                const pos = ((currentPrice - s) / range * 100);
+                const clamped = Math.max(0, Math.min(100, pos));
+                document.getElementById('pos-marker').style.left = clamped + '%';
+                document.getElementById('pos-val').textContent = pos.toFixed(1) + '% in range';
+                
+                const distR = ((r - currentPrice) / currentPrice * 100).toFixed(2);
+                const distS = ((currentPrice - s) / currentPrice * 100).toFixed(2);
+                document.getElementById('dist-r').textContent = '+' + distR + '%';
+                document.getElementById('dist-s').textContent = '-' + distS + '%';
+            }
         }
         
         // ═══════════════════════════════════════════════════════════════════════════════
@@ -390,8 +506,6 @@
                 
                 historicalLevels.sort((a, b) => a.timestamp - b.timestamp);
                 document.getElementById('stat-days').textContent = historicalLevels.length;
-                console.log(`Loaded ${historicalLevels.length} historical days`);
-                
                 rebuildLines();
             } catch (e) {
                 console.error('Error loading history:', e);
@@ -433,8 +547,8 @@
                 }
             }
             
-            rSeries.setData(rData);
-            sSeries.setData(sData);
+            if (showR) rSeries.setData(rData); else rSeries.setData([]);
+            if (showS) sSeries.setData(sData); else sSeries.setData([]);
         }
         
         // ═══════════════════════════════════════════════════════════════════════════════
@@ -463,8 +577,8 @@
         }
         
         async function fetchCandles() {
-            const interval = tf === 'D' ? '1d' : tf + 'm';
-            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=500`);
+            // tf is already in Binance format (1m, 5m, 1h, 4h, 1d, etc)
+            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${tf}&limit=500`);
             const data = await res.json();
             
             candleData = data.map(d => ({
@@ -479,30 +593,30 @@
         
         function connectWS() {
             if (ws) ws.close();
-            if (tf === 'D') return;
+            if (tf === '1d' || tf === '1w' || tf === '1M') return;
             
-            ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${tf}m`);
+            ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${tf}`);
             ws.onmessage = (e) => {
                 const { k } = JSON.parse(e.data);
                 const candleTime = k.t / 1000;
-                const price = +k.c;
+                currentPrice = +k.c;
                 
-                candleSeries.update({ time: candleTime, open: +k.o, high: +k.h, low: +k.l, close: price });
+                candleSeries.update({ time: candleTime, open: +k.o, high: +k.h, low: +k.l, close: currentPrice });
                 
                 const levels = interpolateLevel(candleTime);
                 if (levels) {
-                    rSeries.update({ time: candleTime, value: levels.r });
-                    sSeries.update({ time: candleTime, value: levels.s });
+                    if (showR) rSeries.update({ time: candleTime, value: levels.r });
+                    if (showS) sSeries.update({ time: candleTime, value: levels.s });
+                    updateLevelDisplay(levels.r, levels.s);
                 }
                 
-                document.getElementById('price').textContent = '$' + price.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                document.getElementById('price').textContent = '$' + currentPrice.toLocaleString('en-US', { maximumFractionDigits: 0 });
             };
         }
         
         async function switchTimeframe(newTf) {
             if (newTf === tf) return;
             
-            // Disable buttons during switch
             document.querySelectorAll('[data-tf]').forEach(b => b.disabled = true);
             setStatus('Loading...', true);
             
@@ -513,6 +627,7 @@
                 connectWS();
                 setStatus('Live', false);
             } catch (e) {
+                console.error(e);
                 setStatus('Error', false);
             }
             
@@ -525,7 +640,7 @@
         }
         
         // ═══════════════════════════════════════════════════════════════════════════════
-        // EVENTS & INIT
+        // EVENTS
         // ═══════════════════════════════════════════════════════════════════════════════
         
         document.querySelectorAll('[data-tf]').forEach(btn => {
@@ -538,6 +653,18 @@
         
         document.getElementById('btn-refresh').addEventListener('click', calculateLive);
         
+        document.getElementById('toggle-r').addEventListener('click', function() {
+            this.classList.toggle('on');
+            showR = this.classList.contains('on');
+            rebuildLines();
+        });
+        
+        document.getElementById('toggle-s').addEventListener('click', function() {
+            this.classList.toggle('on');
+            showS = this.classList.contains('on');
+            rebuildLines();
+        });
+        
         setInterval(() => {
             if (nextUpdate) {
                 const secs = Math.max(0, Math.floor((nextUpdate - Date.now()) / 1000));
@@ -545,7 +672,10 @@
             }
         }, 1000);
         
-        // Initialize
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // INIT
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
         initChart();
         loadHistoricalLevels().then(() => {
             fetchCandles().then(() => {
@@ -554,7 +684,6 @@
             });
         });
         
-        // Auto-calculate every minute
         setInterval(calculateLive, UPDATE_INTERVAL);
     </script>
 </body>
