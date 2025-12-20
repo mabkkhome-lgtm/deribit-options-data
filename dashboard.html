@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Options Levels - Dynamic Bands</title>
+    <title>Options Levels - Dynamic</title>
     <style>
         * {
             margin: 0;
@@ -34,12 +34,6 @@
         .logo {
             font-weight: 600;
             font-size: 15px;
-        }
-
-        .price-box {
-            display: flex;
-            align-items: center;
-            gap: 12px;
         }
 
         .price {
@@ -148,30 +142,6 @@
             margin-bottom: 4px;
         }
 
-        .level-label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-        }
-
-        .dot.r {
-            background: #2196f3;
-        }
-
-        .dot.s {
-            background: #9c27b0;
-        }
-
-        .dot.c {
-            background: #ffc107;
-        }
-
         .level-value {
             font-weight: 600;
             font-family: 'Monaco', monospace;
@@ -186,43 +156,34 @@
             color: #9c27b0;
         }
 
-        .level-value.c {
-            color: #ffc107;
-        }
-
         .stats-row {
             display: flex;
             justify-content: space-between;
             padding: 4px 0;
             border-bottom: 1px solid #2a2e39;
+            font-size: 11px;
         }
 
         .stats-label {
             color: #787b86;
         }
 
-        .stats-value {
-            font-weight: 500;
-        }
-
         .history-list {
-            max-height: 200px;
+            max-height: 180px;
             overflow-y: auto;
         }
 
         .history-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 4px 6px;
+            padding: 3px 6px;
             background: #2a2e39;
             border-radius: 3px;
-            margin-bottom: 3px;
+            margin-bottom: 2px;
             font-size: 10px;
+            color: #d1d4dc;
         }
 
-        .btn-refresh {
+        .btn-calc {
             background: #2962ff !important;
-            border-color: #2962ff !important;
             margin-left: auto;
         }
     </style>
@@ -230,14 +191,9 @@
 
 <body>
     <header class="header">
-        <div class="logo">📊 Options Levels - Dynamic Bands</div>
-        <div class="price-box">
-            <span class="price" id="price">$---,---</span>
-        </div>
-        <div class="status">
-            <span class="status-dot"></span>
-            <span id="status">Connecting...</span>
-        </div>
+        <div class="logo">📊 Options Levels Tracker</div>
+        <div><span class="price" id="price">$---,---</span></div>
+        <div class="status"><span class="status-dot"></span><span id="status">Loading...</span></div>
     </header>
 
     <div class="main">
@@ -247,7 +203,7 @@
                 <button data-tf="5">5m</button>
                 <button data-tf="15">15m</button>
                 <button data-tf="60">1H</button>
-                <button class="btn-refresh" id="btn-refresh">🔄 Calculate</button>
+                <button class="btn-calc" id="btn-calc">🔄 Calculate</button>
             </div>
             <div id="chart"></div>
         </div>
@@ -255,105 +211,60 @@
         <aside class="sidebar">
             <div class="panel">
                 <div class="panel-title">📊 Current Levels</div>
-                <div class="level">
-                    <div class="level-label">
-                        <div class="dot r"></div> Resistance
-                    </div>
-                    <span class="level-value r" id="r-val">---</span>
-                </div>
-                <div class="level">
-                    <div class="level-label">
-                        <div class="dot c"></div> Price
-                    </div>
-                    <span class="level-value c" id="c-val">$---</span>
-                </div>
-                <div class="level">
-                    <div class="level-label">
-                        <div class="dot s"></div> Support
-                    </div>
-                    <span class="level-value s" id="s-val">---</span>
-                </div>
+                <div class="level"><span>Resistance</span><span class="level-value r" id="r-val">---</span></div>
+                <div class="level"><span>Support</span><span class="level-value s" id="s-val">---</span></div>
+                <div class="level"><span>Range</span><span class="level-value" id="range-val">$---</span></div>
             </div>
 
             <div class="panel">
                 <div class="panel-title">📈 Stats</div>
-                <div class="stats-row"><span class="stats-label">Range</span><span class="stats-value"
-                        id="stat-range">$---</span></div>
-                <div class="stats-row"><span class="stats-label">Longs</span><span class="stats-value"
-                        id="stat-longs">--</span></div>
-                <div class="stats-row"><span class="stats-label">Shorts</span><span class="stats-value"
-                        id="stat-shorts">--</span></div>
-                <div class="stats-row"><span class="stats-label">Calcs</span><span class="stats-value"
-                        id="stat-calcs">0</span></div>
+                <div class="stats-row"><span class="stats-label">Data Points</span><span id="stat-points">0</span></div>
+                <div class="stats-row"><span class="stats-label">Longs</span><span id="stat-longs">--</span></div>
+                <div class="stats-row"><span class="stats-label">Shorts</span><span id="stat-shorts">--</span></div>
+                <div class="stats-row"><span class="stats-label">Next Calc</span><span id="stat-next">--:--</span></div>
             </div>
 
             <div class="panel">
-                <div class="panel-title">📜 Calculation History</div>
-                <div class="history-list" id="history-list">
-                    <div class="history-item"><span>Waiting...</span></div>
-                </div>
+                <div class="panel-title">📜 History</div>
+                <div class="history-list" id="history">Waiting...</div>
             </div>
         </aside>
     </div>
 
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <script>
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // CONFIG
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
-        const THALES_API = 'https://oss.thales-mfi.com/api/MarketScreener/FetchOptions';
-        const CORS_PROXY = 'https://corsproxy.io/?';
-        const UPDATE_INTERVAL = 60000; // 1 minute
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // STATE
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
+        const API = 'https://oss.thales-mfi.com/api/MarketScreener/FetchOptions';
+        const PROXY = 'https://corsproxy.io/?';
+        const INTERVAL = 60000;
+
         let chart, candleSeries, rSeries, sSeries;
-        let currentPrice = 0;
-        let timeframe = '1';
+        let tf = '1';
         let ws = null;
-        
-        // Store ALL calculations with timestamps (for building the smooth line)
-        // Each entry: { timestamp: unix_seconds, r: resistance, s: support }
-        let calculations = [];
-        
-        // Store candle data for reference
-        let candleData = [];
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // THALES CALCULATION
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
-        function getTomorrowExpiryCode() {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            tomorrow.setUTCHours(0, 0, 0, 0);
-            const epoch = new Date(0);
-            return Math.floor((tomorrow - epoch) / (1000 * 60 * 60 * 24));
+        let nextUpdate = null;
+
+        // Array of {time, r, s} - each calculation adds a point
+        let points = [];
+        let candles = [];
+
+        function getTomorrowExpiry() {
+            const t = new Date(); t.setDate(t.getDate() + 1); t.setUTCHours(0, 0, 0, 0);
+            return Math.floor((t - new Date(0)) / 864e5);
         }
-        
-        function parseCSV(csv, expiryCode) {
+
+        function parseCSV(csv, expiry) {
             const longs = [], shorts = [];
             for (const line of csv.trim().split('\n')) {
                 const p = line.split(',');
                 if (p.length < 7) continue;
                 try {
-                    if (parseInt(p[1]) !== expiryCode) continue;
-                    const pos = {
-                        type: p[0] === '0' ? 'call' : 'put',
-                        strike: parseFloat(p[2]),
-                        size: parseFloat(p[5]),
-                        premium: parseFloat(p[6])
-                    };
-                    if (p[4] === '0') longs.push(pos);
-                    else shorts.push(pos);
-                } catch (e) {}
+                    if (parseInt(p[1]) !== expiry) continue;
+                    const pos = { type: p[0] === '0' ? 'call' : 'put', strike: +p[2], size: +p[5], premium: +p[6] };
+                    if (p[4] === '0') longs.push(pos); else shorts.push(pos);
+                } catch { }
             }
             return { longs, shorts };
         }
-        
+
         function calcPnL(positions, price, isBuyer) {
             let total = 0;
             for (const p of positions) {
@@ -362,269 +273,165 @@
             }
             return total;
         }
-        
-        function findConvergence(longs, shorts) {
+
+        function findLevels(longs, shorts) {
             const strikes = [...longs, ...shorts].map(p => p.strike);
             if (!strikes.length) return { r: 95000, s: 85000 };
-            
+
             const min = Math.floor(Math.min(...strikes) * 0.9);
             const max = Math.ceil(Math.max(...strikes) * 1.1);
-            const intersections = [];
+            const crosses = [];
             let prevDiff = null;
-            
+
             for (let price = min; price < max; price += 10) {
                 const diff = calcPnL(longs, price, true) - calcPnL(shorts, price, false);
-                if (prevDiff !== null && prevDiff * diff < 0) intersections.push(price);
+                if (prevDiff !== null && prevDiff * diff < 0) crosses.push(price);
                 prevDiff = diff;
             }
-            
-            if (intersections.length >= 2) return { s: intersections[0], r: intersections[intersections.length - 1] };
-            if (intersections.length === 1) return { s: intersections[0], r: intersections[0] };
+
+            if (crosses.length >= 2) return { s: crosses[0], r: crosses[crosses.length - 1] };
+            if (crosses.length === 1) return { s: crosses[0], r: crosses[0] };
             const avg = strikes.reduce((a, b) => a + b, 0) / strikes.length;
             return { s: Math.round(avg * 0.95), r: Math.round(avg * 1.05) };
         }
-        
-        async function fetchAndCalculate() {
+
+        async function calculate() {
             document.getElementById('status').textContent = 'Calculating...';
-            
             try {
                 const now = new Date();
-                const startOfDay = new Date(now); startOfDay.setUTCHours(0, 0, 0, 0);
-                
-                const url = `${CORS_PROXY}${THALES_API}?source=1&fromDate=${startOfDay.getTime()}&toDate=${now.getTime()}`;
+                const start = new Date(now); start.setUTCHours(0, 0, 0, 0);
+                const url = `${PROXY}${API}?source=1&fromDate=${start.getTime()}&toDate=${now.getTime()}`;
                 const res = await fetch(url);
                 const csv = await res.text();
-                
-                const { longs, shorts } = parseCSV(csv, getTomorrowExpiryCode());
+
+                const { longs, shorts } = parseCSV(csv, getTomorrowExpiry());
                 document.getElementById('stat-longs').textContent = longs.length;
                 document.getElementById('stat-shorts').textContent = shorts.length;
-                
-                if (!longs.length || !shorts.length) return;
-                
-                const { r, s } = findConvergence(longs, shorts);
-                const timestamp = Math.floor(now.getTime() / 1000);
-                
-                // Add to calculations
-                calculations.push({ timestamp, r, s });
-                
+
+                if (!longs.length || !shorts.length) { document.getElementById('status').textContent = 'No data'; return; }
+
+                const { r, s } = findLevels(longs, shorts);
+                const time = Math.floor(now.getTime() / 1000);
+
+                // ADD POINT
+                points.push({ time, r, s });
+
                 console.log(`✅ ${now.toLocaleTimeString()} R=${r} S=${s}`);
-                
-                // Rebuild the smooth lines
-                buildSmoothLines();
+
+                rebuildLines();
                 updateUI(r, s);
                 updateHistory();
-                
-                document.getElementById('stat-calcs').textContent = calculations.length;
+
+                document.getElementById('stat-points').textContent = points.length;
                 document.getElementById('status').textContent = 'Live';
-                
             } catch (e) {
                 console.error(e);
                 document.getElementById('status').textContent = 'Error';
             }
+            nextUpdate = Date.now() + INTERVAL;
         }
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // SMOOTH LINE BUILDING
-        // This interpolates R/S values for each candle to create smooth curves
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
-        function buildSmoothLines() {
-            if (calculations.length === 0 || candleData.length === 0) return;
-            
-            // Sort calculations by time
-            calculations.sort((a, b) => a.timestamp - b.timestamp);
-            
-            const rLineData = [];
-            const sLineData = [];
-            
-            for (const candle of candleData) {
-                const candleTime = candle.time;
-                
-                // Find the R/S value for this candle time
-                // Use the latest calculation that is <= this candle time
-                let r = null, s = null;
-                
-                for (let i = calculations.length - 1; i >= 0; i--) {
-                    if (calculations[i].timestamp <= candleTime) {
-                        r = calculations[i].r;
-                        s = calculations[i].s;
-                        break;
-                    }
-                }
-                
-                // If no calculation before this candle, use the first one
-                if (r === null && calculations.length > 0) {
-                    r = calculations[0].r;
-                    s = calculations[0].s;
-                }
-                
-                if (r !== null) {
-                    rLineData.push({ time: candleTime, value: r });
-                    sLineData.push({ time: candleTime, value: s });
-                }
-            }
-            
-            // Also add current/future candles with latest calculation
-            if (calculations.length > 0) {
-                const latest = calculations[calculations.length - 1];
-                const now = Math.floor(Date.now() / 1000);
-                
-                // Extend to current time if needed
-                if (rLineData.length > 0 && rLineData[rLineData.length - 1].time < now) {
-                    rLineData.push({ time: now, value: latest.r });
-                    sLineData.push({ time: now, value: latest.s });
-                }
-            }
-            
-            rSeries.setData(rLineData);
-            sSeries.setData(sLineData);
+
+        function rebuildLines() {
+            if (!points.length || !candles.length) return;
+
+            // Build R/S line data - connects all points with diagonal lines (like Pine Script)
+            const rData = points.map(p => ({ time: p.time, value: p.r }));
+            const sData = points.map(p => ({ time: p.time, value: p.s }));
+
+            rSeries.setData(rData);
+            sSeries.setData(sData);
         }
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // CHART
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
+
         function initChart() {
             const container = document.getElementById('chart');
-            
             chart = LightweightCharts.createChart(container, {
                 layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
                 grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
                 rightPriceScale: { borderColor: '#363a45' },
                 timeScale: { borderColor: '#363a45', timeVisible: true },
-                crosshair: { mode: 1 },
             });
-            
+
             candleSeries = chart.addCandlestickSeries({
                 upColor: '#26a69a', downColor: '#ef5350',
                 borderUpColor: '#26a69a', borderDownColor: '#ef5350',
                 wickUpColor: '#26a69a', wickDownColor: '#ef5350',
             });
-            
-            // SMOOTH CURVED LINES - like in the user's image
-            rSeries = chart.addLineSeries({ 
-                color: '#2196f3',  // Blue like in image
-                lineWidth: 3, 
-                title: 'R',
-                priceLineVisible: true,
-                lastValueVisible: true,
-                crosshairMarkerVisible: true,
-            });
-            
-            sSeries = chart.addLineSeries({ 
-                color: '#9c27b0',  // Purple/maroon like in image
-                lineWidth: 3, 
-                title: 'S',
-                priceLineVisible: true,
-                lastValueVisible: true,
-                crosshairMarkerVisible: true,
-            });
-            
-            new ResizeObserver(() => {
-                chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
-            }).observe(container);
+
+            // CONNECTING LINES - like your Pine Script
+            rSeries = chart.addLineSeries({ color: '#2196f3', lineWidth: 3, title: 'R', priceLineVisible: true });
+            sSeries = chart.addLineSeries({ color: '#9c27b0', lineWidth: 3, title: 'S', priceLineVisible: true });
+
+            new ResizeObserver(() => chart.applyOptions({ width: container.clientWidth, height: container.clientHeight })).observe(container);
         }
-        
+
         async function fetchCandles() {
-            const interval = timeframe + 'm';
+            const interval = tf + 'm';
             const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=500`);
             const data = await res.json();
-            
-            candleData = data.map(d => ({
+
+            candles = data.map(d => ({
                 time: d[0] / 1000,
-                open: parseFloat(d[1]),
-                high: parseFloat(d[2]),
-                low: parseFloat(d[3]),
-                close: parseFloat(d[4]),
+                open: +d[1], high: +d[2], low: +d[3], close: +d[4],
             }));
-            
-            candleSeries.setData(candleData);
+
+            candleSeries.setData(candles);
             chart.timeScale().fitContent();
-            
-            // Rebuild lines with new candle data
-            buildSmoothLines();
+            rebuildLines();
         }
-        
+
         function connectWS() {
             if (ws) ws.close();
-            const interval = timeframe + 'm';
-            ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${interval}`);
-            
+            ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${tf}m`);
             ws.onmessage = (e) => {
                 const { k } = JSON.parse(e.data);
-                currentPrice = parseFloat(k.c);
-                const candleTime = k.t / 1000;
-                
-                candleSeries.update({
-                    time: candleTime,
-                    open: parseFloat(k.o),
-                    high: parseFloat(k.h),
-                    low: parseFloat(k.l),
-                    close: parseFloat(k.c),
-                });
-                
-                // Extend R/S lines to current candle
-                if (calculations.length > 0) {
-                    const latest = calculations[calculations.length - 1];
-                    rSeries.update({ time: candleTime, value: latest.r });
-                    sSeries.update({ time: candleTime, value: latest.s });
+                candleSeries.update({ time: k.t / 1000, open: +k.o, high: +k.h, low: +k.l, close: +k.c });
+
+                // Extend lines to current candle
+                if (points.length) {
+                    const last = points[points.length - 1];
+                    rSeries.update({ time: k.t / 1000, value: last.r });
+                    sSeries.update({ time: k.t / 1000, value: last.s });
                 }
-                
-                document.getElementById('price').textContent = '$' + currentPrice.toLocaleString('en-US', { maximumFractionDigits: 0 });
-                document.getElementById('c-val').textContent = '$' + currentPrice.toLocaleString();
+
+                document.getElementById('price').textContent = '$' + (+k.c).toLocaleString('en-US', { maximumFractionDigits: 0 });
             };
         }
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // UI
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
+
         function updateUI(r, s) {
             document.getElementById('r-val').textContent = '$' + r.toLocaleString();
             document.getElementById('s-val').textContent = '$' + s.toLocaleString();
-            document.getElementById('stat-range').textContent = '$' + (r - s).toLocaleString();
+            document.getElementById('range-val').textContent = '$' + (r - s).toLocaleString();
         }
-        
+
         function updateHistory() {
-            const container = document.getElementById('history-list');
-            const reversed = [...calculations].reverse().slice(0, 20);
-            container.innerHTML = reversed.map(d => {
-                const time = new Date(d.timestamp * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                return `<div class="history-item">
-                    <span style="color:#787b86">${time}</span>
-                    <span style="color:#2196f3">R:${(d.r/1000).toFixed(1)}K</span>
-                    <span style="color:#9c27b0">S:${(d.s/1000).toFixed(1)}K</span>
-                </div>`;
+            const h = document.getElementById('history');
+            h.innerHTML = [...points].reverse().slice(0, 15).map(p => {
+                const time = new Date(p.time * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                return `<div class="history-item">${time} → R:$${(p.r / 1000).toFixed(1)}K S:$${(p.s / 1000).toFixed(1)}K</div>`;
             }).join('');
         }
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // EVENTS
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
+
+        setInterval(() => {
+            if (nextUpdate) {
+                const secs = Math.max(0, Math.floor((nextUpdate - Date.now()) / 1000));
+                document.getElementById('stat-next').textContent = `${Math.floor(secs / 60)}:${(secs % 60).toString().padStart(2, '0')}`;
+            }
+        }, 1000);
+
         document.querySelectorAll('[data-tf]').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('[data-tf]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                timeframe = btn.dataset.tf;
+                tf = btn.dataset.tf;
                 fetchCandles().then(connectWS);
             });
         });
-        
-        document.getElementById('btn-refresh').addEventListener('click', fetchAndCalculate);
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // INIT
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
+
+        document.getElementById('btn-calc').addEventListener('click', calculate);
+
         initChart();
-        fetchCandles().then(() => {
-            connectWS();
-            fetchAndCalculate();
-        });
-        
-        // Auto-calculate every minute
-        setInterval(fetchAndCalculate, UPDATE_INTERVAL);
+        fetchCandles().then(() => { connectWS(); calculate(); });
+        setInterval(calculate, INTERVAL);
     </script>
 </body>
 
