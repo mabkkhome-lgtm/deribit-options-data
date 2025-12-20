@@ -742,11 +742,11 @@
         function getTomorrowExpiry() { const t = new Date(); t.setDate(t.getDate() + 1); t.setUTCHours(0, 0, 0, 0); return Math.floor((t - new Date(0)) / 864e5); }
         function parseThalesCSV(csv, expiry) { const longs = [], shorts = []; let calls = 0, puts = 0, totalPremium = 0; const sm = {}; for (const ln of csv.trim().split('\n')) { const p = ln.split(','); if (p.length < 7) continue; try { if (parseInt(p[1]) !== expiry) continue; const t = p[0] === '0' ? 'call' : 'put', strike = +p[2], size = +p[5], prem = +p[6]; if (p[4] === '0') longs.push({ type: t, strike, size, premium: prem }); else shorts.push({ type: t, strike, size, premium: prem }); if (t === 'call') calls++; else puts++; totalPremium += prem * size; sm[strike] = (sm[strike] || 0) + size; } catch { } } const ts = Object.entries(sm).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([s, z]) => ({ strike: +s, size: z })); return { longs, shorts, calls, puts, totalPremium, topStrikes: ts }; }
         function calcPnL(pos, price, buyer) { let t = 0; for (const p of pos) { const intr = p.type === 'call' ? Math.max(price - p.strike, 0) : Math.max(p.strike - price, 0); t += (buyer ? intr - p.premium : p.premium - intr) * p.size; } return t; }
-        
-        function findLevels(longs, shorts) { 
+
+        function findLevels(longs, shorts) {
             const allPos = [...longs, ...shorts];
             if (!allPos.length) return null;
-            
+
             // Calculate OI by strike for calls and puts
             const callOI = {}, putOI = {};
             for (const p of allPos) {
@@ -756,42 +756,71 @@
                     putOI[p.strike] = (putOI[p.strike] || 0) + p.size;
                 }
             }
-            
-            // R = Strike with highest CALL open interest (where calls are concentrated = resistance)
+
+            // R = Strike with highest CALL open interest (resistance)
             let r = 0, maxCallOI = 0;
             for (const [strike, oi] of Object.entries(callOI)) {
                 if (oi > maxCallOI) { maxCallOI = oi; r = +strike; }
             }
-            
-            // S = Strike with highest PUT open interest (where puts are concentrated = support)
+
+            // S = Strike with highest PUT open interest (support)
             let s = 0, maxPutOI = 0;
             for (const [strike, oi] of Object.entries(putOI)) {
                 if (oi > maxPutOI) { maxPutOI = oi; s = +strike; }
             }
-            
-            // Gamma levels: Top 3 call strikes weighted avg (BG) and top 3 put strikes weighted avg (SG)
-            const callStrikes = Object.entries(callOI).sort((a, b) => b[1] - a[1]).slice(0, 3);
-            const putStrikes = Object.entries(putOI).sort((a, b) => b[1] - a[1]).slice(0, 3);
-            
-            let bg = r, sg = s;
-            if (callStrikes.length > 0) {
-                const totalOI = callStrikes.reduce((a, [_, oi]) => a + oi, 0);
-                bg = Math.round(callStrikes.reduce((a, [strike, oi]) => a + (+strike) * oi, 0) / totalOI);
+
+            // Gamma levels based on BUYER (long) and SELLER (short) positions
+            // BG (Buyer Gamma) = HIGHEST strike where buyers (longs) have significant OI
+            // SG (Seller Gamma) = LOWEST strike where sellers (shorts) have significant OI
+
+            const buyerOI = {}, sellerOI = {};
+            for (const p of longs) {
+                buyerOI[p.strike] = (buyerOI[p.strike] || 0) + p.size;
             }
-            if (putStrikes.length > 0) {
-                const totalOI = putStrikes.reduce((a, [_, oi]) => a + oi, 0);
-                sg = Math.round(putStrikes.reduce((a, [strike, oi]) => a + (+strike) * oi, 0) / totalOI);
+            for (const p of shorts) {
+                sellerOI[p.strike] = (sellerOI[p.strike] || 0) + p.size;
             }
-            
-            // Ensure R > S, BG > SG
-            if (r < s) [r, s] = [s, r];
+
+            // BG = Highest strike with buyer (long) exposure
+            let bg = r;
+            const buyerStrikes = Object.keys(buyerOI).map(Number).sort((a, b) => b - a); // Sort descending
+            if (buyerStrikes.length > 0) {
+                // Find highest strike with significant OI (top 30% of max)
+                const maxBuyerOI = Math.max(...Object.values(buyerOI));
+                for (const strike of buyerStrikes) {
+                    if (buyerOI[strike] >= maxBuyerOI * 0.3) {
+                        bg = strike;
+                        break;
+                    }
+                }
+            }
+
+            // SG = Lowest strike with seller (short) exposure
+            let sg = s;
+            const sellerStrikes = Object.keys(sellerOI).map(Number).sort((a, b) => a - b); // Sort ascending
+            if (sellerStrikes.length > 0) {
+                // Find lowest strike with significant OI (top 30% of max)
+                const maxSellerOI = Math.max(...Object.values(sellerOI));
+                for (const strike of sellerStrikes) {
+                    if (sellerOI[strike] >= maxSellerOI * 0.3) {
+                        sg = strike;
+                        break;
+                    }
+                }
+            }
+
+            // Ensure proper ordering: BG > SG (gamma band is inside R/S)
             if (bg < sg) [bg, sg] = [sg, bg];
-            
-            console.log(`🎯 Levels: R=${r} (call OI=${maxCallOI.toFixed(2)}), S=${s} (put OI=${maxPutOI.toFixed(2)})`);
-            console.log(`📊 Gamma: BG=${bg}, SG=${sg}`);
-            
-            return { r, s, bg, sg }; 
+            // Ensure R >= BG and SG >= S
+            if (r < bg) r = bg;
+            if (s > sg) s = sg;
+
+            console.log(`🎯 Levels: R=${r}, S=${s}`);
+            console.log(`📊 Gamma: BG=${bg} (highest buyer), SG=${sg} (lowest seller)`);
+
+            return { r, s, bg, sg };
         }
+
 
 
         async function calculateLive() { setStatus('Calculating...', true); try { const now = new Date(), start = new Date(now); start.setUTCHours(0, 0, 0, 0); const res = await fetch(`${PROXY}${THALES_API}?source=1&fromDate=${start.getTime()}&toDate=${now.getTime()}`); thalesData = parseThalesCSV(await res.text(), getTomorrowExpiry()); updateThalesUI(); if (thalesData.longs.length && thalesData.shorts.length) { const lv = findLevels(thalesData.longs, thalesData.shorts); if (lv) { const td = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000); const ex = historicalLevels.find(h => h.timestamp >= td); if (ex) Object.assign(ex, lv); else { historicalLevels.push({ timestamp: td, ...lv }); historicalLevels.sort((a, b) => a.timestamp - b.timestamp); } updateLevelDisplay(lv); document.getElementById('stat-time').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); rebuildLines(); } } setStatus('Live', false); } catch (e) { console.error(e); setStatus('Error', false); } nextUpdate = Date.now() + UPDATE_INTERVAL; }
@@ -860,15 +889,15 @@
             new ResizeObserver(() => chart.applyOptions({ width: container.clientWidth, height: container.clientHeight })).observe(container);
         }
 
-        async function fetchCandles() { 
-            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${tf}&limit=500`); 
-            const d = await res.json(); 
-            candleData = d.map(x => ({ time: x[0] / 1000, open: +x[1], high: +x[2], low: +x[3], close: +x[4], volume: +x[5] })); 
-            candleSeries.setData(candleData); 
-            chart.timeScale().fitContent(); 
-            rebuildLines(); 
+        async function fetchCandles() {
+            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${tf}&limit=500`);
+            const d = await res.json();
+            candleData = d.map(x => ({ time: x[0] / 1000, open: +x[1], high: +x[2], low: +x[3], close: +x[4], volume: +x[5] }));
+            candleSeries.setData(candleData);
+            chart.timeScale().fitContent();
+            rebuildLines();
             // Fetch 24hr change from ticker
-            try { const ticker = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT').then(r=>r.json()); openPrice = +ticker.openPrice; updatePriceChange(+ticker.lastPrice); } catch(e) { openPrice = candleData[0]?.open || 0; }
+            try { const ticker = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT').then(r => r.json()); openPrice = +ticker.openPrice; updatePriceChange(+ticker.lastPrice); } catch (e) { openPrice = candleData[0]?.open || 0; }
         }
         function updatePriceChange(price) { const chg = ((price - openPrice) / openPrice * 100).toFixed(2); const ce = document.getElementById('price-change'); ce.textContent = (chg >= 0 ? '+' : '') + chg + '%'; ce.className = 'price-change ' + (chg >= 0 ? 'up' : 'down'); }
         function connectWS() { if (ws) ws.close(); if (tf === '1d' || tf === '1w') return; ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${tf}`); ws.onmessage = e => { const { k } = JSON.parse(e.data); currentPrice = +k.c; candleSeries.update({ time: k.t / 1000, open: +k.o, high: +k.h, low: +k.l, close: currentPrice }); const lv = interpolateLevel(k.t / 1000); if (lv) { if (showLines.r) rSeries.update({ time: k.t / 1000, value: lv.r }); if (showLines.s) sSeries.update({ time: k.t / 1000, value: lv.s }); if (showLines.bg) bgSeries.update({ time: k.t / 1000, value: lv.bg }); if (showLines.sg) sgSeries.update({ time: k.t / 1000, value: lv.sg }); updateLevelDisplay(lv); } document.getElementById('price').textContent = '$' + currentPrice.toLocaleString('en-US', { maximumFractionDigits: 0 }); updatePriceChange(currentPrice); }; }
