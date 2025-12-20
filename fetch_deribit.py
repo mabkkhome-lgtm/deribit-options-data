@@ -208,6 +208,37 @@ def find_convergence_points(longs, shorts):
         return int(mean_strike * 0.95), int(mean_strike * 1.05)
 
 
+def find_gamma_levels(longs, shorts, support, resistance):
+    """
+    Find gamma levels (BG and SG) using weighted average of strikes.
+    BG = weighted average of BUYER (long) positions by size
+    SG = weighted average of SELLER (short) positions by size
+    """
+    # Calculate weighted average of buyer strikes
+    total_buyer_size = sum(p['size'] for p in longs)
+    if total_buyer_size > 0:
+        bg = sum(p['strike'] * p['size'] for p in longs) / total_buyer_size
+    else:
+        bg = (support + resistance) / 2
+    
+    # Calculate weighted average of seller strikes
+    total_seller_size = sum(p['size'] for p in shorts)
+    if total_seller_size > 0:
+        sg = sum(p['strike'] * p['size'] for p in shorts) / total_seller_size
+    else:
+        sg = (support + resistance) / 2
+    
+    bg = int(bg)
+    sg = int(sg)
+    
+    # Ensure BG > SG
+    if bg < sg:
+        bg, sg = sg, bg
+    
+    print(f"   Gamma: BG={bg} (buyer weighted avg), SG={sg} (seller weighted avg)")
+    
+    return bg, sg
+
 def load_existing_data():
     """Load existing CSV data if it exists."""
     if not OUTPUT_FILE.exists():
@@ -267,19 +298,26 @@ def main():
             print("\n⚠️  Not enough data, using defaults")
             bottom_range = 85000
             top_range = 100000
+            buyer_gamma = 90000
+            seller_gamma = 87000
         else:
             print("\n🎯 Finding convergence points...")
             bottom_range, top_range = find_convergence_points(longs, shorts)
+            
+            print("\n📊 Finding gamma levels...")
+            buyer_gamma, seller_gamma = find_gamma_levels(longs, shorts, bottom_range, top_range)
         
         print(f"""
    Results:
    ─────────────────────────────────
-   Bottom Range (Support):  ${bottom_range:,}
-   Top Range (Resistance):  ${top_range:,}
+   Resistance (R):   ${top_range:,}
+   Support (S):      ${bottom_range:,}
+   Buyer Gamma (BG): ${buyer_gamma:,}
+   Seller Gamma (SG): ${seller_gamma:,}
    ─────────────────────────────────
 """)
         
-        new_line = f"{expiry_date},{top_range},{bottom_range},{top_range},{bottom_range}"
+        new_line = f"{expiry_date},{top_range},{bottom_range},{buyer_gamma},{seller_gamma}"
         print(f"📝 CSV: {new_line}")
         
         existing_lines = load_existing_data()
