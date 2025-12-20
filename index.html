@@ -773,56 +773,33 @@
             if (r < s) [r, s] = [s, r];
 
             // ==== GAMMA CALCULATION ====
-            // Gamma = second derivative of PnL with respect to price
-            // BG = price where BUYER (long) gamma is maximum
-            // SG = price where SELLER (short) gamma is maximum (most negative value)
-
-            const step = 100;
-            const min = Math.min(s, ...allPos.map(p => p.strike)) - 2000;
-            const max = Math.max(r, ...allPos.map(p => p.strike)) + 2000;
-
-            let maxBuyerGamma = -Infinity, bgPrice = (r + s) / 2;
-            let minSellerGamma = Infinity, sgPrice = (r + s) / 2; // Most negative = minimum
-
-            // Calculate gamma (second derivative) at each price point
-            for (let price = min; price <= max; price += step) {
-                // Calculate PnL at price-step, price, price+step
-                const buyerPnL0 = calcPnL(longs, price - step, true);
-                const buyerPnL1 = calcPnL(longs, price, true);
-                const buyerPnL2 = calcPnL(longs, price + step, true);
-
-                const sellerPnL0 = calcPnL(shorts, price - step, false);
-                const sellerPnL1 = calcPnL(shorts, price, false);
-                const sellerPnL2 = calcPnL(shorts, price + step, false);
-
-                // Second derivative (gamma) = (f(x+h) - 2f(x) + f(x-h)) / h²
-                const buyerGamma = (buyerPnL2 - 2 * buyerPnL1 + buyerPnL0) / (step * step);
-                const sellerGamma = (sellerPnL2 - 2 * sellerPnL1 + sellerPnL0) / (step * step);
-
-                // Track max buyer gamma (BG = peak)
-                if (buyerGamma > maxBuyerGamma) {
-                    maxBuyerGamma = buyerGamma;
-                    bgPrice = price;
-                }
-
-                // Track min seller gamma (SG = most negative = trough)
-                if (sellerGamma < minSellerGamma) {
-                    minSellerGamma = sellerGamma;
-                    sgPrice = price;
-                }
+            // BG = weighted average of BUYER (long) positions by size
+            // SG = weighted average of SELLER (short) positions by size
+            
+            let totalBuyerSize = 0, buyerWeightedSum = 0;
+            let totalSellerSize = 0, sellerWeightedSum = 0;
+            
+            for (const p of longs) {
+                totalBuyerSize += p.size;
+                buyerWeightedSum += p.strike * p.size;
             }
+            for (const p of shorts) {
+                totalSellerSize += p.size;
+                sellerWeightedSum += p.strike * p.size;
+            }
+            
+            let bg = totalBuyerSize > 0 ? Math.round(buyerWeightedSum / totalBuyerSize) : (r + s) / 2;
+            let sg = totalSellerSize > 0 ? Math.round(sellerWeightedSum / totalSellerSize) : (r + s) / 2;
 
-            let bg = Math.round(bgPrice);
-            let sg = Math.round(sgPrice);
-
-            // Ensure BG > SG (buyer gamma band higher than seller)
+            // Ensure BG > SG
             if (bg < sg) [bg, sg] = [sg, bg];
 
             console.log(`🎯 Levels: R=${r}, S=${s}`);
-            console.log(`📊 Gamma: BG=${bg} (max buyer γ=${maxBuyerGamma.toFixed(6)}), SG=${sg} (min seller γ=${minSellerGamma.toFixed(6)})`);
+            console.log(`📊 Gamma: BG=${bg} (buyer weighted avg), SG=${sg} (seller weighted avg)`);
 
             return { r, s, bg, sg };
         }
+
 
 
         async function calculateLive() { setStatus('Calculating...', true); try { const now = new Date(), start = new Date(now); start.setUTCHours(0, 0, 0, 0); const res = await fetch(`${PROXY}${THALES_API}?source=1&fromDate=${start.getTime()}&toDate=${now.getTime()}`); thalesData = parseThalesCSV(await res.text(), getTomorrowExpiry()); updateThalesUI(); if (thalesData.longs.length && thalesData.shorts.length) { const lv = findLevels(thalesData.longs, thalesData.shorts); if (lv) { const td = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000); const ex = historicalLevels.find(h => h.timestamp >= td); if (ex) Object.assign(ex, lv); else { historicalLevels.push({ timestamp: td, ...lv }); historicalLevels.sort((a, b) => a.timestamp - b.timestamp); } updateLevelDisplay(lv); document.getElementById('stat-time').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); rebuildLines(); } } setStatus('Live', false); } catch (e) { console.error(e); setStatus('Error', false); } nextUpdate = Date.now() + UPDATE_INTERVAL; }
