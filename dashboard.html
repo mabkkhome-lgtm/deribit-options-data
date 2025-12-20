@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Options Levels - Dynamic</title>
+    <title>Options Levels Tracker</title>
     <style>
         * {
             margin: 0;
@@ -167,25 +167,6 @@
         .stats-label {
             color: #787b86;
         }
-
-        .history-list {
-            max-height: 180px;
-            overflow-y: auto;
-        }
-
-        .history-item {
-            padding: 3px 6px;
-            background: #2a2e39;
-            border-radius: 3px;
-            margin-bottom: 2px;
-            font-size: 10px;
-            color: #d1d4dc;
-        }
-
-        .btn-calc {
-            background: #2962ff !important;
-            margin-left: auto;
-        }
     </style>
 </head>
 
@@ -199,18 +180,19 @@
     <div class="main">
         <div class="chart-area">
             <div class="toolbar">
-                <button data-tf="1" class="active">1m</button>
+                <button data-tf="1">1m</button>
                 <button data-tf="5">5m</button>
-                <button data-tf="15">15m</button>
+                <button data-tf="15" class="active">15m</button>
                 <button data-tf="60">1H</button>
-                <button class="btn-calc" id="btn-calc">🔄 Calculate</button>
+                <button data-tf="240">4H</button>
+                <button data-tf="D">1D</button>
             </div>
             <div id="chart"></div>
         </div>
 
         <aside class="sidebar">
             <div class="panel">
-                <div class="panel-title">📊 Current Levels</div>
+                <div class="panel-title">📊 Today's Levels</div>
                 <div class="level"><span>Resistance</span><span class="level-value r" id="r-val">---</span></div>
                 <div class="level"><span>Support</span><span class="level-value s" id="s-val">---</span></div>
                 <div class="level"><span>Range</span><span class="level-value" id="range-val">$---</span></div>
@@ -218,130 +200,126 @@
 
             <div class="panel">
                 <div class="panel-title">📈 Stats</div>
-                <div class="stats-row"><span class="stats-label">Data Points</span><span id="stat-points">0</span></div>
-                <div class="stats-row"><span class="stats-label">Longs</span><span id="stat-longs">--</span></div>
-                <div class="stats-row"><span class="stats-label">Shorts</span><span id="stat-shorts">--</span></div>
-                <div class="stats-row"><span class="stats-label">Next Calc</span><span id="stat-next">--:--</span></div>
-            </div>
-
-            <div class="panel">
-                <div class="panel-title">📜 History</div>
-                <div class="history-list" id="history">Waiting...</div>
+                <div class="stats-row"><span class="stats-label">Historical Days</span><span id="stat-days">--</span>
+                </div>
+                <div class="stats-row"><span class="stats-label">Price Position</span><span id="stat-pos">--</span>
+                </div>
             </div>
         </aside>
     </div>
 
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <script>
-        const API = 'https://oss.thales-mfi.com/api/MarketScreener/FetchOptions';
-        const PROXY = 'https://corsproxy.io/?';
-        const INTERVAL = 60000;
-
+        const CSV_URL = 'https://raw.githubusercontent.com/mabkkhome-lgtm/deribit-options-data/main/data/btc_levels.csv';
+        
         let chart, candleSeries, rSeries, sSeries;
-        let tf = '1';
+        let tf = '15';
         let ws = null;
-        let nextUpdate = null;
-
-        // Array of {time, r, s} - each calculation adds a point
-        let points = [];
-        let candles = [];
-
-        function getTomorrowExpiry() {
-            const t = new Date(); t.setDate(t.getDate() + 1); t.setUTCHours(0, 0, 0, 0);
-            return Math.floor((t - new Date(0)) / 864e5);
+        let historicalLevels = []; // [{timestamp, r, s}, ...]
+        let candleData = [];
+        
+        // Parse date string "dd/mm/yyyy" to timestamp
+        function parseDate(dateStr) {
+            const [d, m, y] = dateStr.split('/').map(Number);
+            return new Date(y, m - 1, d).getTime() / 1000;
         }
-
-        function parseCSV(csv, expiry) {
-            const longs = [], shorts = [];
-            for (const line of csv.trim().split('\n')) {
-                const p = line.split(',');
-                if (p.length < 7) continue;
-                try {
-                    if (parseInt(p[1]) !== expiry) continue;
-                    const pos = { type: p[0] === '0' ? 'call' : 'put', strike: +p[2], size: +p[5], premium: +p[6] };
-                    if (p[4] === '0') longs.push(pos); else shorts.push(pos);
-                } catch { }
-            }
-            return { longs, shorts };
-        }
-
-        function calcPnL(positions, price, isBuyer) {
-            let total = 0;
-            for (const p of positions) {
-                const intrinsic = p.type === 'call' ? Math.max(price - p.strike, 0) : Math.max(p.strike - price, 0);
-                total += (isBuyer ? intrinsic - p.premium : p.premium - intrinsic) * p.size;
-            }
-            return total;
-        }
-
-        function findLevels(longs, shorts) {
-            const strikes = [...longs, ...shorts].map(p => p.strike);
-            if (!strikes.length) return { r: 95000, s: 85000 };
-
-            const min = Math.floor(Math.min(...strikes) * 0.9);
-            const max = Math.ceil(Math.max(...strikes) * 1.1);
-            const crosses = [];
-            let prevDiff = null;
-
-            for (let price = min; price < max; price += 10) {
-                const diff = calcPnL(longs, price, true) - calcPnL(shorts, price, false);
-                if (prevDiff !== null && prevDiff * diff < 0) crosses.push(price);
-                prevDiff = diff;
-            }
-
-            if (crosses.length >= 2) return { s: crosses[0], r: crosses[crosses.length - 1] };
-            if (crosses.length === 1) return { s: crosses[0], r: crosses[0] };
-            const avg = strikes.reduce((a, b) => a + b, 0) / strikes.length;
-            return { s: Math.round(avg * 0.95), r: Math.round(avg * 1.05) };
-        }
-
-        async function calculate() {
-            document.getElementById('status').textContent = 'Calculating...';
+        
+        // Load historical levels from CSV
+        async function loadHistoricalLevels() {
             try {
-                const now = new Date();
-                const start = new Date(now); start.setUTCHours(0, 0, 0, 0);
-                const url = `${PROXY}${API}?source=1&fromDate=${start.getTime()}&toDate=${now.getTime()}`;
-                const res = await fetch(url);
-                const csv = await res.text();
-
-                const { longs, shorts } = parseCSV(csv, getTomorrowExpiry());
-                document.getElementById('stat-longs').textContent = longs.length;
-                document.getElementById('stat-shorts').textContent = shorts.length;
-
-                if (!longs.length || !shorts.length) { document.getElementById('status').textContent = 'No data'; return; }
-
-                const { r, s } = findLevels(longs, shorts);
-                const time = Math.floor(now.getTime() / 1000);
-
-                // ADD POINT
-                points.push({ time, r, s });
-
-                console.log(`✅ ${now.toLocaleTimeString()} R=${r} S=${s}`);
-
-                rebuildLines();
-                updateUI(r, s);
-                updateHistory();
-
-                document.getElementById('stat-points').textContent = points.length;
+                const res = await fetch(CSV_URL + '?t=' + Date.now());
+                const text = await res.text();
+                const lines = text.trim().split('\n');
+                
+                historicalLevels = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const parts = lines[i].split(',');
+                    if (parts.length >= 3) {
+                        const timestamp = parseDate(parts[0].trim());
+                        const r = parseFloat(parts[1]);
+                        const s = parseFloat(parts[2]);
+                        if (!isNaN(timestamp) && !isNaN(r) && !isNaN(s)) {
+                            historicalLevels.push({ timestamp, r, s });
+                        }
+                    }
+                }
+                
+                historicalLevels.sort((a, b) => a.timestamp - b.timestamp);
+                console.log(`Loaded ${historicalLevels.length} historical levels`);
+                document.getElementById('stat-days').textContent = historicalLevels.length;
+                
+                // Update UI with latest
+                if (historicalLevels.length > 0) {
+                    const latest = historicalLevels[historicalLevels.length - 1];
+                    document.getElementById('r-val').textContent = '$' + latest.r.toLocaleString();
+                    document.getElementById('s-val').textContent = '$' + latest.s.toLocaleString();
+                    document.getElementById('range-val').textContent = '$' + (latest.r - latest.s).toLocaleString();
+                }
+                
+                rebuildCurvingLines();
                 document.getElementById('status').textContent = 'Live';
             } catch (e) {
-                console.error(e);
+                console.error('Error loading levels:', e);
                 document.getElementById('status').textContent = 'Error';
             }
-            nextUpdate = Date.now() + INTERVAL;
         }
-
-        function rebuildLines() {
-            if (!points.length || !candles.length) return;
-
-            // Build R/S line data - connects all points with diagonal lines (like Pine Script)
-            const rData = points.map(p => ({ time: p.time, value: p.r }));
-            const sData = points.map(p => ({ time: p.time, value: p.s }));
-
+        
+        // Interpolate R/S value for a given timestamp
+        function interpolateLevel(timestamp) {
+            if (historicalLevels.length === 0) return null;
+            
+            // Find the two levels surrounding this timestamp
+            let before = null, after = null;
+            
+            for (let i = 0; i < historicalLevels.length; i++) {
+                if (historicalLevels[i].timestamp <= timestamp) {
+                    before = historicalLevels[i];
+                }
+                if (historicalLevels[i].timestamp > timestamp && after === null) {
+                    after = historicalLevels[i];
+                }
+            }
+            
+            // If timestamp is after all data, use the last level
+            if (!after) {
+                return before ? { r: before.r, s: before.s } : null;
+            }
+            
+            // If timestamp is before all data, use the first level
+            if (!before) {
+                return { r: after.r, s: after.s };
+            }
+            
+            // Interpolate between before and after
+            const totalTime = after.timestamp - before.timestamp;
+            const elapsed = timestamp - before.timestamp;
+            const ratio = totalTime > 0 ? elapsed / totalTime : 0;
+            
+            return {
+                r: before.r + (after.r - before.r) * ratio,
+                s: before.s + (after.s - before.s) * ratio
+            };
+        }
+        
+        // Build curving lines by calculating R/S for each candle
+        function rebuildCurvingLines() {
+            if (historicalLevels.length === 0 || candleData.length === 0) return;
+            
+            const rData = [];
+            const sData = [];
+            
+            for (const candle of candleData) {
+                const levels = interpolateLevel(candle.time);
+                if (levels) {
+                    rData.push({ time: candle.time, value: levels.r });
+                    sData.push({ time: candle.time, value: levels.s });
+                }
+            }
+            
             rSeries.setData(rData);
             sSeries.setData(sData);
         }
-
+        
         function initChart() {
             const container = document.getElementById('chart');
             chart = LightweightCharts.createChart(container, {
@@ -350,74 +328,80 @@
                 rightPriceScale: { borderColor: '#363a45' },
                 timeScale: { borderColor: '#363a45', timeVisible: true },
             });
-
+            
             candleSeries = chart.addCandlestickSeries({
                 upColor: '#26a69a', downColor: '#ef5350',
                 borderUpColor: '#26a69a', borderDownColor: '#ef5350',
                 wickUpColor: '#26a69a', wickDownColor: '#ef5350',
             });
-
-            // CONNECTING LINES - like your Pine Script
-            rSeries = chart.addLineSeries({ color: '#2196f3', lineWidth: 3, title: 'R', priceLineVisible: true });
-            sSeries = chart.addLineSeries({ color: '#9c27b0', lineWidth: 3, title: 'S', priceLineVisible: true });
-
+            
+            // CURVING LINES - interpolated between daily levels
+            rSeries = chart.addLineSeries({ 
+                color: '#2196f3', 
+                lineWidth: 3, 
+                title: 'R',
+                priceLineVisible: true,
+                lastValueVisible: true,
+            });
+            
+            sSeries = chart.addLineSeries({ 
+                color: '#9c27b0', 
+                lineWidth: 3, 
+                title: 'S',
+                priceLineVisible: true,
+                lastValueVisible: true,
+            });
+            
             new ResizeObserver(() => chart.applyOptions({ width: container.clientWidth, height: container.clientHeight })).observe(container);
         }
-
+        
         async function fetchCandles() {
-            const interval = tf + 'm';
+            const interval = tf === 'D' ? '1d' : tf + 'm';
             const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=500`);
             const data = await res.json();
-
-            candles = data.map(d => ({
+            
+            candleData = data.map(d => ({
                 time: d[0] / 1000,
                 open: +d[1], high: +d[2], low: +d[3], close: +d[4],
             }));
-
-            candleSeries.setData(candles);
+            
+            candleSeries.setData(candleData);
             chart.timeScale().fitContent();
-            rebuildLines();
+            
+            rebuildCurvingLines();
         }
-
+        
         function connectWS() {
             if (ws) ws.close();
+            if (tf === 'D') return; // No WS for daily
+            
             ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${tf}m`);
             ws.onmessage = (e) => {
                 const { k } = JSON.parse(e.data);
-                candleSeries.update({ time: k.t / 1000, open: +k.o, high: +k.h, low: +k.l, close: +k.c });
-
-                // Extend lines to current candle
-                if (points.length) {
-                    const last = points[points.length - 1];
-                    rSeries.update({ time: k.t / 1000, value: last.r });
-                    sSeries.update({ time: k.t / 1000, value: last.s });
+                const candleTime = k.t / 1000;
+                const price = +k.c;
+                
+                candleSeries.update({ 
+                    time: candleTime, 
+                    open: +k.o, high: +k.h, low: +k.l, close: price 
+                });
+                
+                // Update curving lines for current candle
+                const levels = interpolateLevel(candleTime);
+                if (levels) {
+                    rSeries.update({ time: candleTime, value: levels.r });
+                    sSeries.update({ time: candleTime, value: levels.s });
+                    
+                    // Update position indicator
+                    const range = levels.r - levels.s;
+                    const pos = ((price - levels.s) / range * 100).toFixed(1);
+                    document.getElementById('stat-pos').textContent = pos + '% in range';
                 }
-
-                document.getElementById('price').textContent = '$' + (+k.c).toLocaleString('en-US', { maximumFractionDigits: 0 });
+                
+                document.getElementById('price').textContent = '$' + price.toLocaleString('en-US', { maximumFractionDigits: 0 });
             };
         }
-
-        function updateUI(r, s) {
-            document.getElementById('r-val').textContent = '$' + r.toLocaleString();
-            document.getElementById('s-val').textContent = '$' + s.toLocaleString();
-            document.getElementById('range-val').textContent = '$' + (r - s).toLocaleString();
-        }
-
-        function updateHistory() {
-            const h = document.getElementById('history');
-            h.innerHTML = [...points].reverse().slice(0, 15).map(p => {
-                const time = new Date(p.time * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                return `<div class="history-item">${time} → R:$${(p.r / 1000).toFixed(1)}K S:$${(p.s / 1000).toFixed(1)}K</div>`;
-            }).join('');
-        }
-
-        setInterval(() => {
-            if (nextUpdate) {
-                const secs = Math.max(0, Math.floor((nextUpdate - Date.now()) / 1000));
-                document.getElementById('stat-next').textContent = `${Math.floor(secs / 60)}:${(secs % 60).toString().padStart(2, '0')}`;
-            }
-        }, 1000);
-
+        
         document.querySelectorAll('[data-tf]').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('[data-tf]').forEach(b => b.classList.remove('active'));
@@ -426,12 +410,15 @@
                 fetchCandles().then(connectWS);
             });
         });
-
-        document.getElementById('btn-calc').addEventListener('click', calculate);
-
+        
         initChart();
-        fetchCandles().then(() => { connectWS(); calculate(); });
-        setInterval(calculate, INTERVAL);
+        fetchCandles().then(() => {
+            connectWS();
+            loadHistoricalLevels();
+        });
+        
+        // Refresh levels every 5 minutes
+        setInterval(loadHistoricalLevels, 300000);
     </script>
 </body>
 
