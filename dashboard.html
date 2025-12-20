@@ -870,18 +870,35 @@
 
 
         // Use TODAY's expiry instead of tomorrow (matching Thales)
-        function getTodayExpiry() { const t = new Date(); t.setUTCHours(0, 0, 0, 0); return Math.floor((t - new Date(0)) / 864e5); }
+        function getTodayExpiry() { 
+            const t = new Date(); 
+            t.setUTCHours(0, 0, 0, 0); 
+            const days = Math.floor((t - new Date(0)) / 864e5);
+            console.log(`📅 Today's expiry code: ${days} (${t.toISOString().split('T')[0]})`);
+            return days; 
+        }
 
         function parseThalesCSV(csv, expiry) {
             const longs = [], shorts = [];
             let calls = 0, puts = 0, totalPremium = 0;
             const sm = {};
-            for (const ln of csv.trim().split('\n')) {
+            const lines = csv.trim().split('\n');
+            
+            console.log(`📊 Parsing ${lines.length} lines, looking for expiry ${expiry} to ${expiry + 1}`);
+            
+            let debugCount = 0;
+            for (const ln of lines) {
                 const p = ln.split(',');
                 if (p.length < 7) continue;
                 try {
-                    // Include TODAY's expiry AND tomorrow's (within 2 days)
                     const expDay = parseInt(p[1]);
+                    
+                    // Debug first 5 matching lines
+                    if (debugCount < 5 && (expDay >= expiry && expDay <= expiry + 1)) {
+                        console.log(`   Line: type=${p[0]}, expiry=${p[1]}, strike=${p[2]}, side=${p[4]}, size=${p[5]}, prem=${p[6]}`);
+                        debugCount++;
+                    }
+                    
                     if (expDay < expiry || expDay > expiry + 1) continue;
 
                     const t = p[0] === '0' ? 'call' : 'put', strike = +p[2], size = +p[5], prem = +p[6];
@@ -892,7 +909,12 @@
                     sm[strike] = (sm[strike] || 0) + size;
                 } catch { }
             }
+            
             const ts = Object.entries(sm).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([s, z]) => ({ strike: +s, size: z }));
+            
+            console.log(`📈 Parsed: ${longs.length} longs, ${shorts.length} shorts, ${calls} calls, ${puts} puts`);
+            if (ts.length > 0) console.log(`🎯 Top strikes: ${ts.slice(0,3).map(s => '$'+s.strike).join(', ')}`);
+            
             return { longs, shorts, calls, puts, totalPremium, topStrikes: ts };
         }
 
