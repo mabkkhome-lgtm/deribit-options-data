@@ -659,7 +659,8 @@
                     <div class="bias-short" style="width:50%"></div>
                 </div>
                 <div style="display:flex;justify-content:space-between;font-size:9px;color:#787b86;margin-top:2px;">
-                    <span>Bulls</span><span id="bias-pct">50%</span><span>Bears</span></div>
+                    <span>Bulls</span><span id="bias-pct">50%</span><span>Bears</span>
+                </div>
             </div>
 
             <div class="panel">
@@ -809,8 +810,19 @@
             new ResizeObserver(() => chart.applyOptions({ width: container.clientWidth, height: container.clientHeight })).observe(container);
         }
 
-        async function fetchCandles() { const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${tf}&limit=500`); const d = await res.json(); candleData = d.map(x => ({ time: x[0] / 1000, open: +x[1], high: +x[2], low: +x[3], close: +x[4], volume: +x[5] })); openPrice = candleData[0]?.open || 0; candleSeries.setData(candleData); chart.timeScale().fitContent(); rebuildLines(); }
-        function connectWS() { if (ws) ws.close(); if (tf === '1d' || tf === '1w') return; ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${tf}`); ws.onmessage = e => { const { k } = JSON.parse(e.data); currentPrice = +k.c; candleSeries.update({ time: k.t / 1000, open: +k.o, high: +k.h, low: +k.l, close: currentPrice }); const lv = interpolateLevel(k.t / 1000); if (lv) { if (showLines.r) rSeries.update({ time: k.t / 1000, value: lv.r }); if (showLines.s) sSeries.update({ time: k.t / 1000, value: lv.s }); if (showLines.bg) bgSeries.update({ time: k.t / 1000, value: lv.bg }); if (showLines.sg) sgSeries.update({ time: k.t / 1000, value: lv.sg }); updateLevelDisplay(lv); } document.getElementById('price').textContent = '$' + currentPrice.toLocaleString('en-US', { maximumFractionDigits: 0 }); const chg = ((currentPrice - openPrice) / openPrice * 100).toFixed(2); const ce = document.getElementById('price-change'); ce.textContent = (chg >= 0 ? '+' : '') + chg + '%'; ce.className = 'price-change ' + (chg >= 0 ? 'up' : 'down'); }; }
+        async function fetchCandles() { 
+            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${tf}&limit=500`); 
+            const d = await res.json(); 
+            candleData = d.map(x => ({ time: x[0] / 1000, open: +x[1], high: +x[2], low: +x[3], close: +x[4], volume: +x[5] })); 
+            candleSeries.setData(candleData); 
+            chart.timeScale().fitContent(); 
+            rebuildLines(); 
+            // Fetch 24hr change from ticker
+            try { const ticker = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT').then(r=>r.json()); openPrice = +ticker.openPrice; updatePriceChange(+ticker.lastPrice); } catch(e) { openPrice = candleData[0]?.open || 0; }
+        }
+        function updatePriceChange(price) { const chg = ((price - openPrice) / openPrice * 100).toFixed(2); const ce = document.getElementById('price-change'); ce.textContent = (chg >= 0 ? '+' : '') + chg + '%'; ce.className = 'price-change ' + (chg >= 0 ? 'up' : 'down'); }
+        function connectWS() { if (ws) ws.close(); if (tf === '1d' || tf === '1w') return; ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${tf}`); ws.onmessage = e => { const { k } = JSON.parse(e.data); currentPrice = +k.c; candleSeries.update({ time: k.t / 1000, open: +k.o, high: +k.h, low: +k.l, close: currentPrice }); const lv = interpolateLevel(k.t / 1000); if (lv) { if (showLines.r) rSeries.update({ time: k.t / 1000, value: lv.r }); if (showLines.s) sSeries.update({ time: k.t / 1000, value: lv.s }); if (showLines.bg) bgSeries.update({ time: k.t / 1000, value: lv.bg }); if (showLines.sg) sgSeries.update({ time: k.t / 1000, value: lv.sg }); updateLevelDisplay(lv); } document.getElementById('price').textContent = '$' + currentPrice.toLocaleString('en-US', { maximumFractionDigits: 0 }); updatePriceChange(currentPrice); }; }
+
         async function switchTimeframe(ntf) { if (ntf === tf) return; document.querySelectorAll('[data-tf]').forEach(b => b.disabled = true); setStatus('Loading...', true); tf = ntf; try { await fetchCandles(); connectWS(); setStatus('Live', false); } catch { setStatus('Error', false); } document.querySelectorAll('[data-tf]').forEach(b => b.disabled = false); }
         function setStatus(t, l) { document.getElementById('status').textContent = t; document.getElementById('status-dot').classList.toggle('loading', l); }
 
