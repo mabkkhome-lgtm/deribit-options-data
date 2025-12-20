@@ -418,19 +418,26 @@
             const crosses = [];
             let prevDiff = null;
             
-            // Find max buyer PnL and max seller PnL prices
-            let maxBuyerPnL = -Infinity, maxSellerPnL = -Infinity;
-            let bgPrice = min, sgPrice = max;
+            // Track PnL values at each price point
+            let maxBuyerPnL = -Infinity;
+            let minSellerPnL = Infinity; // Trough = minimum (most negative)
+            let gammaPrice = (min + max) / 2; // Price of max gamma exposure
             
             for (let price = min; price < max; price += 50) {
                 const buyerPnL = calcPnL(longs, price, true);
                 const sellerPnL = calcPnL(shorts, price, false);
                 const diff = buyerPnL - sellerPnL;
                 
-                // BG: where BUYERS make max profit (typically far up)
-                if (buyerPnL > maxBuyerPnL) { maxBuyerPnL = buyerPnL; bgPrice = price; }
-                // SG: where SELLERS make max profit (typically far down)
-                if (sellerPnL > maxSellerPnL) { maxSellerPnL = sellerPnL; sgPrice = price; }
+                // Find where buyers have MAX profit (peak of buyer curve)
+                if (buyerPnL > maxBuyerPnL) { 
+                    maxBuyerPnL = buyerPnL; 
+                    gammaPrice = price; // This is the gamma point
+                }
+                
+                // Also track seller minimum (trough) - should be same price
+                if (sellerPnL < minSellerPnL) { 
+                    minSellerPnL = sellerPnL; 
+                }
                 
                 if (prevDiff !== null && prevDiff * diff < 0) crosses.push(price);
                 prevDiff = diff;
@@ -441,13 +448,15 @@
             else if (crosses.length === 1) { s = crosses[0]; r = crosses[0]; }
             else { 
                 const avg = strikes.reduce((a, b) => a + b, 0) / strikes.length;
-                s = Math.round(avg * 0.95); r = Math.round(avg * 1.05);
+                s = Math.round(avg * 0.97); r = Math.round(avg * 1.03);
             }
             
-            // Ensure BG is above R, SG is below S
-            const bg = Math.max(bgPrice, r + 500);
-            const sg = Math.min(sgPrice, s - 500);
+            // BG and SG are both at the gamma price (max exposure point)
+            // BG is slightly above, SG slightly below to create visible bands
+            const bg = gammaPrice + 500;  // Buyer gamma (upper band)
+            const sg = gammaPrice - 500;  // Seller gamma (lower band)
             
+
             return { r, s, bg, sg };
         }
         
