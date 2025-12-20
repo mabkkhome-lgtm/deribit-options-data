@@ -769,58 +769,72 @@
                 if (oi > maxPutOI) { maxPutOI = oi; s = +strike; }
             }
 
-            // Gamma levels based on BUYER (long) and SELLER (short) positions
-            // BG (Buyer Gamma) = HIGHEST strike where buyers (longs) have significant OI
-            // SG (Seller Gamma) = LOWEST strike where sellers (shorts) have significant OI
+            // Ensure R > S
+            if (r < s) [r, s] = [s, r];
 
-            const buyerOI = {}, sellerOI = {};
-            for (const p of longs) {
-                buyerOI[p.strike] = (buyerOI[p.strike] || 0) + p.size;
-            }
-            for (const p of shorts) {
-                sellerOI[p.strike] = (sellerOI[p.strike] || 0) + p.size;
-            }
+            // ==== GAMMA CALCULATION ====
+            // Gamma is highest at ATM strikes. We calculate net gamma exposure at each price level.
+            // For options: Gamma = OI × (gamma factor based on distance to ATM)
+            // Buyers (longs) have POSITIVE gamma, Sellers (shorts) have NEGATIVE gamma
 
-            // BG = Highest strike with buyer (long) exposure
-            let bg = r;
-            const buyerStrikes = Object.keys(buyerOI).map(Number).sort((a, b) => b - a); // Sort descending
-            if (buyerStrikes.length > 0) {
-                // Find highest strike with significant OI (top 30% of max)
-                const maxBuyerOI = Math.max(...Object.values(buyerOI));
-                for (const strike of buyerStrikes) {
-                    if (buyerOI[strike] >= maxBuyerOI * 0.3) {
-                        bg = strike;
-                        break;
+            // Calculate net gamma at each strike
+            const gammaByStrike = {};
+            const allStrikes = [...new Set([...longs, ...shorts].map(p => p.strike))].sort((a, b) => a - b);
+
+            for (const strike of allStrikes) {
+                let buyerGamma = 0, sellerGamma = 0;
+
+                for (const p of longs) {
+                    if (p.strike === strike) {
+                        buyerGamma += p.size; // Buyers have positive gamma
                     }
+                }
+                for (const p of shorts) {
+                    if (p.strike === strike) {
+                        sellerGamma += p.size; // Sellers have negative gamma (we track magnitude)
+                    }
+                }
+
+                gammaByStrike[strike] = { buyer: buyerGamma, seller: sellerGamma, net: buyerGamma - sellerGamma };
+            }
+
+            // BG = Upper boundary of gamma band (where cumulative buyer gamma is highest)
+            // SG = Lower boundary of gamma band (where cumulative seller gamma is highest)
+
+            // Weight strikes by gamma exposure, find weighted average for buyers (upper band) and sellers (lower band)
+            let totalBuyerGamma = 0, buyerWeightedSum = 0;
+            let totalSellerGamma = 0, sellerWeightedSum = 0;
+
+            for (const [strike, gamma] of Object.entries(gammaByStrike)) {
+                const strikeNum = +strike;
+                if (gamma.buyer > 0) {
+                    totalBuyerGamma += gamma.buyer;
+                    buyerWeightedSum += strikeNum * gamma.buyer;
+                }
+                if (gamma.seller > 0) {
+                    totalSellerGamma += gamma.seller;
+                    sellerWeightedSum += strikeNum * gamma.seller;
                 }
             }
 
-            // SG = Lowest strike with seller (short) exposure
-            let sg = s;
-            const sellerStrikes = Object.keys(sellerOI).map(Number).sort((a, b) => a - b); // Sort ascending
-            if (sellerStrikes.length > 0) {
-                // Find lowest strike with significant OI (top 30% of max)
-                const maxSellerOI = Math.max(...Object.values(sellerOI));
-                for (const strike of sellerStrikes) {
-                    if (sellerOI[strike] >= maxSellerOI * 0.3) {
-                        sg = strike;
-                        break;
-                    }
-                }
-            }
+            // BG = Weighted average of buyer gamma (should be higher)
+            // SG = Weighted average of seller gamma (should be lower)
+            let bg = totalBuyerGamma > 0 ? Math.round(buyerWeightedSum / totalBuyerGamma) : r;
+            let sg = totalSellerGamma > 0 ? Math.round(sellerWeightedSum / totalSellerGamma) : s;
 
-            // Ensure proper ordering: BG > SG (gamma band is inside R/S)
+            // Ensure BG > SG (buyer gamma band is upper, seller is lower)
             if (bg < sg) [bg, sg] = [sg, bg];
-            // Ensure R >= BG and SG >= S
-            if (r < bg) r = bg;
-            if (s > sg) s = sg;
+
+            // Gamma should be INSIDE R/S range
+            if (bg > r) bg = r;
+            if (sg < s) sg = s;
 
             console.log(`🎯 Levels: R=${r}, S=${s}`);
-            console.log(`📊 Gamma: BG=${bg} (highest buyer), SG=${sg} (lowest seller)`);
+            console.log(`📊 Gamma: BG=${bg} (buyer avg), SG=${sg} (seller avg)`);
+            console.log(`   Buyer gamma total: ${totalBuyerGamma.toFixed(2)}, Seller gamma total: ${totalSellerGamma.toFixed(2)}`);
 
             return { r, s, bg, sg };
         }
-
 
 
         async function calculateLive() { setStatus('Calculating...', true); try { const now = new Date(), start = new Date(now); start.setUTCHours(0, 0, 0, 0); const res = await fetch(`${PROXY}${THALES_API}?source=1&fromDate=${start.getTime()}&toDate=${now.getTime()}`); thalesData = parseThalesCSV(await res.text(), getTomorrowExpiry()); updateThalesUI(); if (thalesData.longs.length && thalesData.shorts.length) { const lv = findLevels(thalesData.longs, thalesData.shorts); if (lv) { const td = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000); const ex = historicalLevels.find(h => h.timestamp >= td); if (ex) Object.assign(ex, lv); else { historicalLevels.push({ timestamp: td, ...lv }); historicalLevels.sort((a, b) => a.timestamp - b.timestamp); } updateLevelDisplay(lv); document.getElementById('stat-time').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); rebuildLines(); } } setStatus('Live', false); } catch (e) { console.error(e); setStatus('Error', false); } nextUpdate = Date.now() + UPDATE_INTERVAL; }
