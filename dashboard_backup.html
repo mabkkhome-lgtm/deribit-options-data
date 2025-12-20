@@ -260,7 +260,7 @@
 
         .position-bar {
             height: 8px;
-            background: linear-gradient(90deg, #ff9800, #9c27b0, #787b86, #2196f3, #00bcd4);
+            background: linear-gradient(90deg, #9c27b0, #787b86, #2196f3);
             border-radius: 4px;
             margin: 8px 0;
             position: relative;
@@ -307,18 +307,24 @@
 
         <aside class="sidebar">
             <div class="panel">
-                <div class="panel-title">📊 Live Levels (4 Bands)</div>
-                <div class="level"><span>🔷 Buyer Gamma (Upper)</span><span class="level-value bg"
-                        id="bg-val">---</span></div>
+                <div class="panel-title">📊 Live Levels</div>
                 <div class="level"><span>🔵 Resistance</span><span class="level-value r" id="r-val">---</span></div>
                 <div class="level"><span>🟣 Support</span><span class="level-value s" id="s-val">---</span></div>
-                <div class="level"><span>🟠 Seller Gamma (Lower)</span><span class="level-value sg"
-                        id="sg-val">---</span></div>
+                <div class="level"><span>🔷 Buyer Gamma</span><span class="level-value bg" id="bg-val">---</span></div>
+                <div class="level"><span>🟠 Seller Gamma</span><span class="level-value sg" id="sg-val">---</span></div>
                 <div class="position-bar">
                     <div class="position-marker" id="pos-marker" style="left:50%"></div>
                 </div>
                 <div class="level"><span>📍 Position</span><span class="level-value" id="pos-val">--% in range</span>
                 </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">📈 Distance to Levels</div>
+                <div class="level"><span>↗️ To R</span><span class="level-value green" id="dist-r">+---%</span></div>
+                <div class="level"><span>↘️ To S</span><span class="level-value red" id="dist-s">---%</span></div>
+                <div class="level"><span>↗️ To BG</span><span class="level-value bg" id="dist-bg">+---%</span></div>
+                <div class="level"><span>↘️ To SG</span><span class="level-value sg" id="dist-sg">---%</span></div>
             </div>
 
             <div class="panel">
@@ -337,14 +343,14 @@
 
             <div class="panel">
                 <div class="panel-title">⚙️ Display Options</div>
-                <div class="toggle-row"><span>🔷 Buyer Gamma</span>
-                    <div class="toggle on" data-line="bg"></div>
-                </div>
                 <div class="toggle-row"><span>🔵 Resistance</span>
                     <div class="toggle on" data-line="r"></div>
                 </div>
                 <div class="toggle-row"><span>🟣 Support</span>
                     <div class="toggle on" data-line="s"></div>
+                </div>
+                <div class="toggle-row"><span>🔷 Buyer Gamma</span>
+                    <div class="toggle on" data-line="bg"></div>
                 </div>
                 <div class="toggle-row"><span>🟠 Seller Gamma</span>
                     <div class="toggle on" data-line="sg"></div>
@@ -413,23 +419,21 @@
             const strikes = [...longs, ...shorts].map(p => p.strike);
             if (!strikes.length) return null;
             
-            const min = Math.floor(Math.min(...strikes) * 0.85);
-            const max = Math.ceil(Math.max(...strikes) * 1.15);
+            const min = Math.floor(Math.min(...strikes) * 0.9);
+            const max = Math.ceil(Math.max(...strikes) * 1.1);
             const crosses = [];
             let prevDiff = null;
             
             // Find max buyer PnL and max seller PnL prices
             let maxBuyerPnL = -Infinity, maxSellerPnL = -Infinity;
-            let bgPrice = min, sgPrice = max;
+            let bgPrice = min, sgPrice = min;
             
-            for (let price = min; price < max; price += 50) {
+            for (let price = min; price < max; price += 10) {
                 const buyerPnL = calcPnL(longs, price, true);
                 const sellerPnL = calcPnL(shorts, price, false);
                 const diff = buyerPnL - sellerPnL;
                 
-                // BG: where BUYERS make max profit (typically far up)
                 if (buyerPnL > maxBuyerPnL) { maxBuyerPnL = buyerPnL; bgPrice = price; }
-                // SG: where SELLERS make max profit (typically far down)
                 if (sellerPnL > maxSellerPnL) { maxSellerPnL = sellerPnL; sgPrice = price; }
                 
                 if (prevDiff !== null && prevDiff * diff < 0) crosses.push(price);
@@ -444,11 +448,7 @@
                 s = Math.round(avg * 0.95); r = Math.round(avg * 1.05);
             }
             
-            // Ensure BG is above R, SG is below S
-            const bg = Math.max(bgPrice, r + 500);
-            const sg = Math.min(sgPrice, s - 500);
-            
-            return { r, s, bg, sg };
+            return { r, s, bg: Math.max(bgPrice, r), sg: Math.min(sgPrice, s) };
         }
         
         async function calculateLive() {
@@ -481,7 +481,7 @@
                         document.getElementById('stat-time').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
                         
                         rebuildLines();
-                        console.log(`✅ ${now.toLocaleTimeString()} BG=${levels.bg} R=${levels.r} S=${levels.s} SG=${levels.sg}`);
+                        console.log(`✅ ${now.toLocaleTimeString()} R=${levels.r} S=${levels.s} BG=${levels.bg} SG=${levels.sg}`);
                     }
                 }
                 setStatus('Live', false);
@@ -498,18 +498,22 @@
             document.getElementById('bg-val').textContent = '$' + levels.bg.toLocaleString();
             document.getElementById('sg-val').textContent = '$' + levels.sg.toLocaleString();
             
-            if (currentPrice > 0 && levels.bg && levels.sg) {
-                // Position within full range (SG to BG)
-                const fullRange = levels.bg - levels.sg;
-                const pos = ((currentPrice - levels.sg) / fullRange * 100);
+            if (currentPrice > 0) {
+                const range = levels.r - levels.s;
+                const pos = ((currentPrice - levels.s) / range * 100);
                 const clamped = Math.max(0, Math.min(100, pos));
                 document.getElementById('pos-marker').style.left = clamped + '%';
-                document.getElementById('pos-val').textContent = pos.toFixed(1) + '% in full range';
+                document.getElementById('pos-val').textContent = pos.toFixed(1) + '% in range';
+                
+                document.getElementById('dist-r').textContent = '+' + ((levels.r - currentPrice) / currentPrice * 100).toFixed(2) + '%';
+                document.getElementById('dist-s').textContent = '-' + ((currentPrice - levels.s) / currentPrice * 100).toFixed(2) + '%';
+                document.getElementById('dist-bg').textContent = '+' + ((levels.bg - currentPrice) / currentPrice * 100).toFixed(2) + '%';
+                document.getElementById('dist-sg').textContent = '-' + ((currentPrice - levels.sg) / currentPrice * 100).toFixed(2) + '%';
             }
         }
         
         // ═══════════════════════════════════════════════════════════════════════════════
-        // HISTORICAL DATA - Now calculates proper BG/SG from R/S
+        // HISTORICAL DATA
         // ═══════════════════════════════════════════════════════════════════════════════
         
         function parseDate(dateStr) {
@@ -530,15 +534,10 @@
                         const timestamp = parseDate(parts[0].trim());
                         const r = parseFloat(parts[1]);
                         const s = parseFloat(parts[2]);
-                        
-                        // Calculate BG and SG based on R/S range
-                        // BG is above R, SG is below S
-                        const range = r - s;
-                        const bg = r + range * 0.3; // 30% above resistance
-                        const sg = s - range * 0.3; // 30% below support
-                        
+                        const bg = parts.length >= 4 ? parseFloat(parts[3]) : r; // Default to R if not present
+                        const sg = parts.length >= 5 ? parseFloat(parts[4]) : s; // Default to S if not present
                         if (!isNaN(timestamp) && !isNaN(r) && !isNaN(s)) {
-                            historicalLevels.push({ timestamp, r, s, bg, sg });
+                            historicalLevels.push({ timestamp, r, s, bg: bg || r, sg: sg || s });
                         }
                     }
                 }
@@ -552,7 +551,7 @@
         }
         
         // ═══════════════════════════════════════════════════════════════════════════════
-        // INTERPOLATION & LINES - ALL 4 LINES CURVE
+        // INTERPOLATION & LINES
         // ═══════════════════════════════════════════════════════════════════════════════
         
         function interpolateLevel(timestamp) {
@@ -615,10 +614,12 @@
                 wickUpColor: '#26a69a', wickDownColor: '#ef5350',
             });
             
-            // ALL 4 lines curve - BG at top, then R, S, SG at bottom
-            bgSeries = chart.addLineSeries({ color: '#00bcd4', lineWidth: 2, title: 'BG', priceLineVisible: true, lastValueVisible: true, lineStyle: 2 });
+            // R/S lines (solid)
             rSeries = chart.addLineSeries({ color: '#2196f3', lineWidth: 3, title: 'R', priceLineVisible: true, lastValueVisible: true });
             sSeries = chart.addLineSeries({ color: '#9c27b0', lineWidth: 3, title: 'S', priceLineVisible: true, lastValueVisible: true });
+            
+            // BG/SG lines (dashed style effect via thinner line)
+            bgSeries = chart.addLineSeries({ color: '#00bcd4', lineWidth: 2, title: 'BG', priceLineVisible: true, lastValueVisible: true, lineStyle: 2 });
             sgSeries = chart.addLineSeries({ color: '#ff9800', lineWidth: 2, title: 'SG', priceLineVisible: true, lastValueVisible: true, lineStyle: 2 });
             
             new ResizeObserver(() => chart.applyOptions({ width: container.clientWidth, height: container.clientHeight })).observe(container);
@@ -652,9 +653,9 @@
                 
                 const levels = interpolateLevel(candleTime);
                 if (levels) {
-                    if (showLines.bg) bgSeries.update({ time: candleTime, value: levels.bg });
                     if (showLines.r) rSeries.update({ time: candleTime, value: levels.r });
                     if (showLines.s) sSeries.update({ time: candleTime, value: levels.s });
+                    if (showLines.bg) bgSeries.update({ time: candleTime, value: levels.bg });
                     if (showLines.sg) sgSeries.update({ time: candleTime, value: levels.sg });
                     updateLevelDisplay(levels);
                 }
