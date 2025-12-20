@@ -746,38 +746,46 @@
         function calcPnL(pos, price, buyer) { let t = 0; for (const p of pos) { const intr = p.type === 'call' ? Math.max(price - p.strike, 0) : Math.max(p.strike - price, 0); t += (buyer ? intr - p.premium : p.premium - intr) * p.size; } return t; }
 
         function findLevels(longs, shorts) {
-            const allPos = [...longs, ...shorts];
-            if (!allPos.length) return null;
+            if (!longs.length || !shorts.length) return null;
 
-            // Calculate OI by strike for calls and puts
-            const callOI = {}, putOI = {};
-            for (const p of allPos) {
-                if (p.type === 'call') {
-                    callOI[p.strike] = (callOI[p.strike] || 0) + p.size;
-                } else {
-                    putOI[p.strike] = (putOI[p.strike] || 0) + p.size;
+            // Find where COMBINED PnL (buyer + seller) crosses zero
+            const allStrikes = [...longs, ...shorts].map(p => p.strike);
+            const minStrike = Math.min(...allStrikes);
+            const maxStrike = Math.max(...allStrikes);
+            const priceMin = Math.floor(minStrike * 0.90);
+            const priceMax = Math.ceil(maxStrike * 1.10);
+
+            const crossings = [];
+            let prevPnl = null;
+
+            for (let price = priceMin; price < priceMax; price++) {
+                const buyerPnl = calcPnL(longs, price, true);
+                const sellerPnl = calcPnL(shorts, price, false);
+                const combinedPnl = buyerPnl + sellerPnl;
+
+                if (prevPnl !== null && prevPnl * combinedPnl < 0) {
+                    // Interpolate
+                    const t = Math.abs(prevPnl) / (Math.abs(prevPnl) + Math.abs(combinedPnl));
+                    crossings.push((price - 1) + t);
                 }
+                prevPnl = combinedPnl;
             }
 
-            // R = Strike with highest CALL open interest (resistance)
-            let r = 0, maxCallOI = 0;
-            for (const [strike, oi] of Object.entries(callOI)) {
-                if (oi > maxCallOI) { maxCallOI = oi; r = +strike; }
+            // R = highest crossing, S = lowest crossing
+            let r, s;
+            if (crossings.length >= 2) {
+                s = Math.round(Math.min(...crossings));
+                r = Math.round(Math.max(...crossings));
+            } else if (crossings.length === 1) {
+                s = r = Math.round(crossings[0]);
+            } else {
+                s = Math.round(minStrike);
+                r = Math.round(maxStrike);
             }
-
-            // S = Strike with highest PUT open interest (support)
-            let s = 0, maxPutOI = 0;
-            for (const [strike, oi] of Object.entries(putOI)) {
-                if (oi > maxPutOI) { maxPutOI = oi; s = +strike; }
-            }
-
-            // Ensure R > S
-            if (r < s) [r, s] = [s, r];
 
             // ==== GAMMA CALCULATION ====
             // BG = weighted average of BUYER (long) positions by size
             // SG = weighted average of SELLER (short) positions by size
-
             let totalBuyerSize = 0, buyerWeightedSum = 0;
             let totalSellerSize = 0, sellerWeightedSum = 0;
 
@@ -796,11 +804,12 @@
             // Ensure BG > SG
             if (bg < sg) [bg, sg] = [sg, bg];
 
-            console.log(`🎯 Levels: R=${r}, S=${s}`);
+            console.log(`🎯 Levels: R=${r} (combined PnL crossing), S=${s}`);
             console.log(`📊 Gamma: BG=${bg} (buyer weighted avg), SG=${sg} (seller weighted avg)`);
 
             return { r, s, bg, sg };
         }
+
 
 
 

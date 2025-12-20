@@ -156,66 +156,62 @@ def calculate_pnl_at_expiry(positions, underlying_price, is_buyer=True):
 def find_levels(longs, shorts):
     """
     Find R, S, BG, SG using Thales method:
-    - R = Highest strike with call interest concentration (max call OI)
-    - S = Highest strike with put interest concentration (max put OI)  
-    - BG = Positive gamma peak (where buyer gamma is highest)
-    - SG = Negative gamma peak (where seller gamma is most negative)
+    - R = Where combined (Buyer + Seller) PnL crosses zero (upper crossing)
+    - S = Where combined (Buyer + Seller) PnL crosses zero (lower crossing)
+    - BG = Weighted average of BUYER (long) strikes by size
+    - SG = Weighted average of SELLER (short) strikes by size
     """
-    all_positions = longs + shorts
-    if not all_positions:
+    if not longs or not shorts:
         return 85000, 100000, 90000, 87000
     
-    # Calculate Open Interest per strike for CALLS and PUTS
-    call_oi = {}  # strike -> total size
-    put_oi = {}   # strike -> total size
+    # Find where COMBINED PnL (buyer + seller) crosses zero
+    # This represents equilibrium points
+    all_strikes = [p['strike'] for p in longs + shorts]
+    min_strike = min(all_strikes)
+    max_strike = max(all_strikes)
     
-    for p in all_positions:
-        if p['type'] == 'call':
-            call_oi[p['strike']] = call_oi.get(p['strike'], 0) + p['size']
-        else:
-            put_oi[p['strike']] = put_oi.get(p['strike'], 0) + p['size']
+    price_min = int(min_strike * 0.90)
+    price_max = int(max_strike * 1.10)
     
-    # R = Strike with highest CALL open interest
-    if call_oi:
-        r_strike, r_oi = max(call_oi.items(), key=lambda x: x[1])
-        r = int(r_strike)
+    crossings = []
+    prev_pnl = None
+    
+    for price in range(price_min, price_max):
+        buyer_pnl = calculate_pnl_at_expiry(longs, price, is_buyer=True)
+        seller_pnl = calculate_pnl_at_expiry(shorts, price, is_buyer=False)
+        combined_pnl = buyer_pnl + seller_pnl
+        
+        if prev_pnl is not None and prev_pnl * combined_pnl < 0:
+            # Interpolate for precision
+            t = abs(prev_pnl) / (abs(prev_pnl) + abs(combined_pnl))
+            exact_price = (price - 1) + t
+            crossings.append(exact_price)
+        
+        prev_pnl = combined_pnl
+    
+    # R = highest crossing, S = lowest crossing
+    if len(crossings) >= 2:
+        s = int(min(crossings))
+        r = int(max(crossings))
+    elif len(crossings) == 1:
+        s = r = int(crossings[0])
     else:
-        r = 100000
+        # Fallback
+        s = int(min_strike)
+        r = int(max_strike)
     
-    # S = Strike with highest PUT open interest
-    if put_oi:
-        s_strike, s_oi = max(put_oi.items(), key=lambda x: x[1])
-        s = int(s_strike)
-    else:
-        s = 85000
-    
-    print(f"   R (max call OI): {r:,} ({r_oi:.1f} contracts)")
-    print(f"   S (max put OI): {s:,} ({s_oi:.1f} contracts)")
+    print(f"   R (combined PnL crossing): {r:,}")
+    print(f"   S (combined PnL crossing): {s:,}")
     
     # ==== GAMMA CALCULATION ====
     # BG = weighted average of BUYER (long) strikes by size
     # SG = weighted average of SELLER (short) strikes by size
     
-    buyer_oi = {}
-    seller_oi = {}
-    for p in longs:
-        buyer_oi[p['strike']] = buyer_oi.get(p['strike'], 0) + p['size']
-    for p in shorts:
-        seller_oi[p['strike']] = seller_oi.get(p['strike'], 0) + p['size']
+    total_buyer = sum(p['size'] for p in longs)
+    bg = sum(p['strike'] * p['size'] for p in longs) / total_buyer if total_buyer > 0 else (r + s) / 2
     
-    # Weighted average of buyer strikes
-    if buyer_oi:
-        total_buyer = sum(buyer_oi.values())
-        bg = sum(strike * size for strike, size in buyer_oi.items()) / total_buyer
-    else:
-        bg = (r + s) / 2
-    
-    # Weighted average of seller strikes
-    if seller_oi:
-        total_seller = sum(seller_oi.values())
-        sg = sum(strike * size for strike, size in seller_oi.items()) / total_seller
-    else:
-        sg = (r + s) / 2
+    total_seller = sum(p['size'] for p in shorts)
+    sg = sum(p['strike'] * p['size'] for p in shorts) / total_seller if total_seller > 0 else (r + s) / 2
     
     bg = int(bg)
     sg = int(sg)
@@ -227,8 +223,7 @@ def find_levels(longs, shorts):
     print(f"   BG (buyer weighted avg): {bg:,}")
     print(f"   SG (seller weighted avg): {sg:,}")
     
-    return s, r, bg, sg  # Note: returns support, resistance, bg, sg
-
+    return s, r, bg, sg  # returns support, resistance, bg, sg
 
 
 def load_existing_data():
