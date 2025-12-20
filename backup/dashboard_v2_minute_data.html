@@ -495,88 +495,6 @@
             padding: 2px 4px;
             border-bottom: 1px solid #1e222d;
         }
-
-        /* About Modal */
-        .about-btn {
-            background: transparent !important;
-            border: none !important;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 2000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-overlay.show {
-            display: flex;
-        }
-
-        .modal {
-            background: #1e222d;
-            border-radius: 12px;
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-            padding: 24px;
-            color: #d1d4dc;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-        }
-
-        .modal h2 {
-            margin-bottom: 16px;
-            color: #fff;
-        }
-
-        .modal h3 {
-            margin: 16px 0 8px;
-            color: #2962ff;
-            font-size: 14px;
-        }
-
-        .modal p {
-            margin-bottom: 12px;
-            line-height: 1.6;
-            font-size: 13px;
-        }
-
-        .modal ul {
-            margin-left: 20px;
-            margin-bottom: 12px;
-        }
-
-        .modal li {
-            margin-bottom: 4px;
-            font-size: 13px;
-        }
-
-        .modal .close-btn {
-            background: #2962ff;
-            color: white;
-            border: none;
-            padding: 10px 24px;
-            border-radius: 6px;
-            cursor: pointer;
-            margin-top: 16px;
-        }
-
-        .modal .level-color {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 2px;
-            margin-right: 6px;
-            vertical-align: middle;
-        }
     </style>
 </head>
 
@@ -584,55 +502,8 @@
     <header class="header">
         <div class="logo">📊 Options Levels Tracker</div>
         <div><span class="price" id="price">$---,---</span><span class="price-change" id="price-change">--</span></div>
-        <div style="display:flex;align-items:center;gap:12px;">
-            <div class="status"><span class="status-dot" id="status-dot"></span><span id="status">Loading...</span>
-            </div>
-            <button class="about-btn" id="about-btn">ℹ️ About</button>
-        </div>
+        <div class="status"><span class="status-dot" id="status-dot"></span><span id="status">Loading...</span></div>
     </header>
-
-    <!-- About Modal -->
-    <div class="modal-overlay" id="about-modal">
-        <div class="modal">
-            <h2>📊 Options Levels Tracker</h2>
-            <p>A real-time dashboard that calculates and visualizes Bitcoin options-based support, resistance, and gamma
-                levels using live data from Deribit options market (via Thales OSS).</p>
-
-            <h3>📈 How It Works</h3>
-            <p>Every minute, the dashboard fetches real-time Bitcoin options trade data and calculates price levels
-                where <b>buyers</b> and <b>sellers</b> have competing profit/loss positions. These levels act as
-                <b>magnetic price zones</b> where the market tends to gravitate.
-            </p>
-
-            <h3>🎨 Level Bands</h3>
-            <ul>
-                <li><span class="level-color" style="background:#2196f3"></span><b>Resistance (R)</b> - Upper
-                    convergence zone where seller PnL exceeds buyer PnL</li>
-                <li><span class="level-color" style="background:#9c27b0"></span><b>Support (S)</b> - Lower convergence
-                    zone where buyer PnL exceeds seller PnL</li>
-                <li><span class="level-color" style="background:#00bcd4"></span><b>Buyer Gamma (BG)</b> - Upper edge of
-                    maximum gamma exposure zone</li>
-                <li><span class="level-color" style="background:#ff9800"></span><b>Seller Gamma (SG)</b> - Lower edge of
-                    maximum gamma exposure zone</li>
-            </ul>
-
-            <h3>⚡ Real-Time Updates</h3>
-            <p>The bands update <b>every minute</b> as new options trades come in. If a large trade shifts the market
-                positioning, you'll see the bands move dynamically on the chart - just like a moving average responds to
-                price changes.</p>
-
-            <h3>🔧 Technical Indicators</h3>
-            <p>Click "📈 Indicators" to add technical overlays like VWAP, EMA, SMA, Bollinger Bands, and more.</p>
-
-            <h3>📊 Data Sources</h3>
-            <ul>
-                <li><b>Options Data:</b> Thales OSS API (Deribit BTC options)</li>
-                <li><b>Price Data:</b> Binance BTC/USDT real-time</li>
-            </ul>
-
-            <button class="close-btn" id="close-modal">Got it!</button>
-        </div>
-    </div>
 
     <div class="main">
         <div class="chart-area">
@@ -1011,13 +882,7 @@
         // Init
         initChart();
         loadHistoricalLevels().then(() => { fetchCandles().then(() => { connectWS(); calculateLive(); }); });
-        // About Modal
-        document.getElementById('about-btn').addEventListener('click', () => document.getElementById('about-modal').classList.add('show'));
-        document.getElementById('close-modal').addEventListener('click', () => document.getElementById('about-modal').classList.remove('show'));
-        document.getElementById('about-modal').addEventListener('click', (e) => { if (e.target.id === 'about-modal') document.getElementById('about-modal').classList.remove('show'); });
-
         setInterval(calculateLive, UPDATE_INTERVAL);
-
     </script>
 </body>
 
