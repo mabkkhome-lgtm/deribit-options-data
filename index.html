@@ -1,360 +1,725 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Options Levels - TradingView Data</title>
+    <title>Options Levels Tracker</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            min-height: 100vh;
-            color: #fff;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        
-        h1 {
-            text-align: center;
-            margin-bottom: 10px;
-            font-size: 1.8rem;
-            background: linear-gradient(90deg, #00d4ff, #7b2ff7);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        .subtitle {
-            text-align: center;
-            color: #888;
-            margin-bottom: 30px;
-        }
-        
-        .card {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-        }
-        
-        .card-title {
-            font-size: 0.9rem;
-            color: #888;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
-        .levels {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .level {
-            text-align: center;
-        }
-        
-        .level-label {
-            font-size: 0.8rem;
-            color: #888;
-            margin-bottom: 5px;
-        }
-        
-        .level-value {
-            font-size: 1.8rem;
-            font-weight: bold;
-        }
-        
-        .level-value.high {
-            color: #4caf50;
-        }
-        
-        .level-value.low {
-            color: #f44336;
-        }
-        
-        .copy-section {
-            background: #0d1117;
-            border-radius: 8px;
-            padding: 16px;
-            margin-top: 20px;
-        }
-        
-        .copy-header {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #131722;
+            color: #d1d4dc;
+            height: 100vh;
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
+        }
+
+        .header {
+            background: #1e222d;
+            border-bottom: 1px solid #363a45;
+            padding: 8px 16px;
+            display: flex;
             align-items: center;
-            margin-bottom: 10px;
+            justify-content: space-between;
+            height: 48px;
         }
-        
-        .copy-label {
-            font-size: 0.9rem;
-            color: #58a6ff;
+
+        .logo {
+            font-weight: 600;
+            font-size: 15px;
         }
-        
-        .copy-btn {
-            background: linear-gradient(90deg, #7b2ff7, #00d4ff);
-            border: none;
-            color: white;
-            padding: 8px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: transform 0.2s, box-shadow 0.2s;
+
+        .price {
+            font-size: 22px;
+            font-weight: 700;
         }
-        
-        .copy-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(123, 47, 247, 0.4);
-        }
-        
-        .copy-btn.copied {
-            background: #4caf50;
-        }
-        
-        .data-preview {
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 0.9rem;
-            color: #8b949e;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-        
+
         .status {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-top: 20px;
-            padding: 12px;
-            background: rgba(76, 175, 80, 0.1);
-            border-radius: 8px;
-            border: 1px solid rgba(76, 175, 80, 0.3);
+            gap: 6px;
+            font-size: 11px;
+            color: #787b86;
         }
-        
+
         .status-dot {
-            width: 10px;
-            height: 10px;
-            background: #4caf50;
+            width: 8px;
+            height: 8px;
+            background: #26a69a;
             border-radius: 50%;
             animation: pulse 2s infinite;
         }
-        
+
+        .status-dot.loading {
+            background: #ff9800;
+        }
+
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
         }
-        
-        .status-text {
-            font-size: 0.85rem;
-            color: #888;
+
+        .main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
         }
-        
-        .refresh-btn {
-            background: transparent;
-            border: 1px solid #58a6ff;
-            color: #58a6ff;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            margin-left: auto;
-            transition: all 0.2s;
+
+        .chart-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
         }
-        
-        .refresh-btn:hover {
-            background: rgba(88, 166, 255, 0.1);
+
+        .toolbar {
+            background: #1e222d;
+            padding: 6px 12px;
+            display: flex;
+            gap: 4px;
+            border-bottom: 1px solid #363a45;
+            flex-wrap: wrap;
         }
-        
-        .last-update {
-            text-align: center;
-            color: #666;
-            font-size: 0.8rem;
-            margin-top: 20px;
-        }
-        
-        .instructions {
-            margin-top: 30px;
-            padding: 20px;
-            background: rgba(88, 166, 255, 0.05);
-            border-radius: 12px;
-            border: 1px solid rgba(88, 166, 255, 0.2);
-        }
-        
-        .instructions h3 {
-            color: #58a6ff;
-            margin-bottom: 15px;
-        }
-        
-        .instructions ol {
-            padding-left: 20px;
-            color: #aaa;
-            line-height: 1.8;
-        }
-        
-        .instructions code {
-            background: rgba(0, 0, 0, 0.3);
-            padding: 2px 6px;
+
+        .toolbar button {
+            padding: 5px 10px;
+            background: #2a2e39;
+            border: 1px solid #363a45;
+            color: #d1d4dc;
             border-radius: 4px;
-            font-size: 0.85rem;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.1s;
         }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #888;
+
+        .toolbar button:hover {
+            background: #363a45;
         }
-        
-        .error {
-            text-align: center;
-            padding: 20px;
+
+        .toolbar button.active {
+            background: #2962ff;
+            border-color: #2962ff;
+        }
+
+        .toolbar button:disabled {
+            opacity: 0.5;
+            cursor: wait;
+        }
+
+        .toolbar .sep {
+            width: 1px;
+            background: #363a45;
+            margin: 0 4px;
+        }
+
+        #chart {
+            flex: 1;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: #1e222d;
+            border-left: 1px solid #363a45;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+
+        .panel {
+            border-bottom: 1px solid #363a45;
+            padding: 12px;
+        }
+
+        .panel-title {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #787b86;
+            margin-bottom: 10px;
+        }
+
+        .level {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 8px;
+            background: #2a2e39;
+            border-radius: 4px;
+            margin-bottom: 4px;
+        }
+
+        .level-value {
+            font-weight: 600;
+            font-family: 'Monaco', monospace;
+            font-size: 11px;
+        }
+
+        .level-value.r {
+            color: #2196f3;
+        }
+
+        .level-value.s {
+            color: #9c27b0;
+        }
+
+        .level-value.bg {
+            color: #00bcd4;
+        }
+
+        .level-value.sg {
+            color: #ff9800;
+        }
+
+        .level-value.green {
+            color: #4caf50;
+        }
+
+        .level-value.red {
             color: #f44336;
-            background: rgba(244, 67, 54, 0.1);
-            border-radius: 8px;
+        }
+
+        .level-value.yellow {
+            color: #ffeb3b;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid #2a2e39;
+            font-size: 11px;
+        }
+
+        .stats-label {
+            color: #787b86;
+        }
+
+        .stats-value.green {
+            color: #4caf50;
+        }
+
+        .stats-value.red {
+            color: #f44336;
+        }
+
+        .stats-value.cyan {
+            color: #00bcd4;
+        }
+
+        .btn-refresh {
+            background: #2962ff !important;
+            margin-left: auto;
+        }
+
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+        }
+
+        .toggle {
+            position: relative;
+            width: 36px;
+            height: 20px;
+            background: #363a45;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .toggle.on {
+            background: #2962ff;
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+
+        .toggle.on::after {
+            left: 18px;
+        }
+
+        .position-bar {
+            height: 8px;
+            background: linear-gradient(90deg, #ff9800, #9c27b0, #787b86, #2196f3, #00bcd4);
+            border-radius: 4px;
+            margin: 8px 0;
+            position: relative;
+        }
+
+        .position-marker {
+            position: absolute;
+            top: -2px;
+            width: 4px;
+            height: 12px;
+            background: #fff;
+            border-radius: 2px;
+            transform: translateX(-50%);
         }
     </style>
 </head>
+
 <body>
-    <div class="container">
-        <h1>📊 Options Levels Tracker</h1>
-        <p class="subtitle">Auto-updated data for TradingView</p>
-        
-        <div class="card">
-            <div class="card-title">Latest Levels</div>
-            <div id="levels-display" class="loading">Loading data...</div>
+    <header class="header">
+        <div class="logo">📊 Options Levels Tracker</div>
+        <div><span class="price" id="price">$---,---</span></div>
+        <div class="status"><span class="status-dot" id="status-dot"></span><span id="status">Loading...</span></div>
+    </header>
+
+    <div class="main">
+        <div class="chart-area">
+            <div class="toolbar">
+                <button data-tf="1m">1m</button>
+                <button data-tf="3m">3m</button>
+                <button data-tf="5m">5m</button>
+                <button data-tf="15m" class="active">15m</button>
+                <button data-tf="30m">30m</button>
+                <div class="sep"></div>
+                <button data-tf="1h">1H</button>
+                <button data-tf="2h">2H</button>
+                <button data-tf="4h">4H</button>
+                <div class="sep"></div>
+                <button data-tf="1d">1D</button>
+                <button data-tf="1w">1W</button>
+                <button class="btn-refresh" id="btn-refresh">🔄 Update</button>
+            </div>
+            <div id="chart"></div>
         </div>
-        
-        <div class="card">
-            <div class="card-title">Copy to TradingView</div>
-            <div class="copy-section">
-                <div class="copy-header">
-                    <span class="copy-label">📋 Data (ready to paste)</span>
-                    <button class="copy-btn" onclick="copyData()">Copy</button>
+
+        <aside class="sidebar">
+            <div class="panel">
+                <div class="panel-title">📊 Live Levels (4 Bands)</div>
+                <div class="level"><span>🔷 Buyer Gamma (Upper)</span><span class="level-value bg"
+                        id="bg-val">---</span></div>
+                <div class="level"><span>🔵 Resistance</span><span class="level-value r" id="r-val">---</span></div>
+                <div class="level"><span>🟣 Support</span><span class="level-value s" id="s-val">---</span></div>
+                <div class="level"><span>🟠 Seller Gamma (Lower)</span><span class="level-value sg"
+                        id="sg-val">---</span></div>
+                <div class="position-bar">
+                    <div class="position-marker" id="pos-marker" style="left:50%"></div>
                 </div>
-                <div id="data-preview" class="data-preview">Loading...</div>
+                <div class="level"><span>📍 Position</span><span class="level-value" id="pos-val">--% in range</span>
+                </div>
             </div>
-            
-            <div class="status">
-                <div class="status-dot"></div>
-                <span class="status-text">Auto-updates every 4 hours</span>
-                <button class="refresh-btn" onclick="refreshData()">⟳ Refresh</button>
+
+            <div class="panel">
+                <div class="panel-title">📊 Thales Data</div>
+                <div class="stats-row"><span class="stats-label">Long Positions</span><span class="stats-value green"
+                        id="stat-longs">--</span></div>
+                <div class="stats-row"><span class="stats-label">Short Positions</span><span class="stats-value red"
+                        id="stat-shorts">--</span></div>
+                <div class="stats-row"><span class="stats-label">Historical Days</span><span id="stat-days">--</span>
+                </div>
+                <div class="stats-row"><span class="stats-label">Last Calculation</span><span
+                        id="stat-time">--:--</span></div>
+                <div class="stats-row"><span class="stats-label">Next Update</span><span class="stats-value cyan"
+                        id="stat-next">--:--</span></div>
             </div>
-        </div>
-        
-        <div id="last-update" class="last-update"></div>
-        
-        <div class="instructions">
-            <h3>How to Use</h3>
-            <ol>
-                <li>Click the <strong>Copy</strong> button above</li>
-                <li>Open TradingView and go to your chart</li>
-                <li>Open the <code>Options Levels Tracker</code> indicator settings</li>
-                <li>Paste into the <strong>"PASTE DATA"</strong> field</li>
-                <li>Done! Levels will appear on your chart</li>
-            </ol>
-        </div>
+
+            <div class="panel">
+                <div class="panel-title">⚙️ Display Options</div>
+                <div class="toggle-row"><span>🔷 Buyer Gamma</span>
+                    <div class="toggle on" data-line="bg"></div>
+                </div>
+                <div class="toggle-row"><span>🔵 Resistance</span>
+                    <div class="toggle on" data-line="r"></div>
+                </div>
+                <div class="toggle-row"><span>🟣 Support</span>
+                    <div class="toggle on" data-line="s"></div>
+                </div>
+                <div class="toggle-row"><span>🟠 Seller Gamma</span>
+                    <div class="toggle on" data-line="sg"></div>
+                </div>
+            </div>
+        </aside>
     </div>
-    
+
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <script>
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // CONFIG
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
         const CSV_URL = 'https://raw.githubusercontent.com/mabkkhome-lgtm/deribit-options-data/main/data/btc_levels.csv';
-        let csvData = '';
+        const THALES_API = 'https://oss.thales-mfi.com/api/MarketScreener/FetchOptions';
+        const PROXY = 'https://corsproxy.io/?';
+        const UPDATE_INTERVAL = 60000;
         
-        async function fetchData() {
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // STATE
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        let chart, candleSeries, rSeries, sSeries, bgSeries, sgSeries;
+        let tf = '15m';
+        let ws = null;
+        let nextUpdate = null;
+        let historicalLevels = []; // {timestamp, r, s, bg, sg}
+        let candleData = [];
+        let showLines = { r: true, s: true, bg: true, sg: true };
+        let currentPrice = 0;
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // THALES LIVE CALCULATION
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        function getTomorrowExpiry() {
+            const t = new Date(); t.setDate(t.getDate() + 1); t.setUTCHours(0, 0, 0, 0);
+            return Math.floor((t - new Date(0)) / 864e5);
+        }
+        
+        function parseThalesCSV(csv, expiry) {
+            const longs = [], shorts = [];
+            for (const line of csv.trim().split('\n')) {
+                const p = line.split(',');
+                if (p.length < 7) continue;
+                try {
+                    if (parseInt(p[1]) !== expiry) continue;
+                    const pos = { type: p[0]==='0'?'call':'put', strike: +p[2], size: +p[5], premium: +p[6] };
+                    if (p[4]==='0') longs.push(pos); else shorts.push(pos);
+                } catch {}
+            }
+            return { longs, shorts };
+        }
+        
+        function calcPnL(positions, price, isBuyer) {
+            let total = 0;
+            for (const p of positions) {
+                const intrinsic = p.type === 'call' ? Math.max(price - p.strike, 0) : Math.max(p.strike - price, 0);
+                total += (isBuyer ? intrinsic - p.premium : p.premium - intrinsic) * p.size;
+            }
+            return total;
+        }
+        
+        function findLevels(longs, shorts) {
+            const strikes = [...longs, ...shorts].map(p => p.strike);
+            if (!strikes.length) return null;
+            
+            const min = Math.floor(Math.min(...strikes) * 0.85);
+            const max = Math.ceil(Math.max(...strikes) * 1.15);
+            const crosses = [];
+            let prevDiff = null;
+            
+            for (let price = min; price < max; price += 50) {
+                const buyerPnL = calcPnL(longs, price, true);
+                const sellerPnL = calcPnL(shorts, price, false);
+                const diff = buyerPnL - sellerPnL;
+                
+                if (prevDiff !== null && prevDiff * diff < 0) crosses.push(price);
+                prevDiff = diff;
+            }
+            
+            let r, s;
+            if (crosses.length >= 2) { 
+                s = crosses[0]; 
+                r = crosses[crosses.length - 1]; 
+            } else if (crosses.length === 1) { 
+                s = crosses[0]; 
+                r = crosses[0]; 
+            } else { 
+                const avg = strikes.reduce((a, b) => a + b, 0) / strikes.length;
+                s = Math.round(avg * 0.97); 
+                r = Math.round(avg * 1.03);
+            }
+            
+            // Gamma point is BETWEEN R and S (where gamma exposure is highest)
+            // This is the midpoint of the R-S range
+            const gammaPoint = (r + s) / 2;
+            const halfWidth = (r - s) * 0.15; // 15% of R-S range
+            
+            // BG slightly above midpoint, SG slightly below - creates a band in the middle
+            const bg = Math.round(gammaPoint + halfWidth);
+            const sg = Math.round(gammaPoint - halfWidth);
+
+            return { r, s, bg, sg };
+        }
+
+        
+        async function calculateLive() {
+            setStatus('Calculating...', true);
             try {
-                const response = await fetch(CSV_URL + '?t=' + Date.now());
-                const text = await response.text();
-                csvData = text;
-                displayData(text);
-            } catch (error) {
-                document.getElementById('levels-display').innerHTML = 
-                    '<div class="error">Failed to load data. Please try again.</div>';
-                console.error(error);
+                const now = new Date();
+                const start = new Date(now); start.setUTCHours(0, 0, 0, 0);
+                const url = `${PROXY}${THALES_API}?source=1&fromDate=${start.getTime()}&toDate=${now.getTime()}`;
+                const res = await fetch(url);
+                const csv = await res.text();
+                
+                const { longs, shorts } = parseThalesCSV(csv, getTomorrowExpiry());
+                document.getElementById('stat-longs').textContent = longs.length;
+                document.getElementById('stat-shorts').textContent = shorts.length;
+                
+                if (longs.length && shorts.length) {
+                    const levels = findLevels(longs, shorts);
+                    if (levels) {
+                        const today = Math.floor(new Date().setUTCHours(0,0,0,0) / 1000);
+                        const existing = historicalLevels.find(h => h.timestamp >= today);
+                        if (existing) { 
+                            existing.r = levels.r; existing.s = levels.s;
+                            existing.bg = levels.bg; existing.sg = levels.sg;
+                        } else { 
+                            historicalLevels.push({ timestamp: today, ...levels }); 
+                            historicalLevels.sort((a, b) => a.timestamp - b.timestamp); 
+                        }
+                        
+                        updateLevelDisplay(levels);
+                        document.getElementById('stat-time').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        
+                        rebuildLines();
+                        console.log(`✅ ${now.toLocaleTimeString()} BG=${levels.bg} R=${levels.r} S=${levels.s} SG=${levels.sg}`);
+                    }
+                }
+                setStatus('Live', false);
+            } catch (e) {
+                console.error('Calc error:', e);
+                setStatus('Error', false);
+            }
+            nextUpdate = Date.now() + UPDATE_INTERVAL;
+        }
+        
+        function updateLevelDisplay(levels) {
+            document.getElementById('r-val').textContent = '$' + levels.r.toLocaleString();
+            document.getElementById('s-val').textContent = '$' + levels.s.toLocaleString();
+            document.getElementById('bg-val').textContent = '$' + levels.bg.toLocaleString();
+            document.getElementById('sg-val').textContent = '$' + levels.sg.toLocaleString();
+            
+            if (currentPrice > 0 && levels.bg && levels.sg) {
+                // Position within full range (SG to BG)
+                const fullRange = levels.bg - levels.sg;
+                const pos = ((currentPrice - levels.sg) / fullRange * 100);
+                const clamped = Math.max(0, Math.min(100, pos));
+                document.getElementById('pos-marker').style.left = clamped + '%';
+                document.getElementById('pos-val').textContent = pos.toFixed(1) + '% in full range';
             }
         }
         
-        function displayData(csv) {
-            const lines = csv.trim().split('\n');
-            const header = lines[0];
-            const dataLines = lines.slice(1);
-            
-            if (dataLines.length === 0) {
-                document.getElementById('levels-display').innerHTML = 
-                    '<div class="error">No data available</div>';
-                return;
-            }
-            
-            // Get latest line
-            const latest = dataLines[dataLines.length - 1];
-            const parts = latest.split(',');
-            
-            if (parts.length >= 3) {
-                const date = parts[0];
-                const high = parseInt(parts[1]).toLocaleString();
-                const low = parseInt(parts[2]).toLocaleString();
-                
-                document.getElementById('levels-display').innerHTML = `
-                    <div class="levels">
-                        <div class="level">
-                            <div class="level-label">Resistance (Top Range)</div>
-                            <div class="level-value high">$${high}</div>
-                        </div>
-                        <div class="level">
-                            <div class="level-label">Support (Bottom Range)</div>
-                            <div class="level-value low">$${low}</div>
-                        </div>
-                    </div>
-                    <div style="text-align: center; color: #888; font-size: 0.9rem;">
-                        For expiry: ${date}
-                    </div>
-                `;
-            }
-            
-            // Show all data lines for copy
-            document.getElementById('data-preview').textContent = dataLines.join('\n');
-            
-            // Update timestamp
-            document.getElementById('last-update').textContent = 
-                'Last checked: ' + new Date().toLocaleTimeString();
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // HISTORICAL DATA - Now calculates proper BG/SG from R/S
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        function parseDate(dateStr) {
+            const [d, m, y] = dateStr.split('/').map(Number);
+            return new Date(y, m - 1, d).getTime() / 1000;
         }
         
-        function copyData() {
-            const lines = csvData.trim().split('\n').slice(1); // Skip header
-            const text = lines.join('\n');
-            
-            navigator.clipboard.writeText(text).then(() => {
-                const btn = document.querySelector('.copy-btn');
-                btn.textContent = '✓ Copied!';
-                btn.classList.add('copied');
+        async function loadHistoricalLevels() {
+            try {
+                const res = await fetch(CSV_URL + '?t=' + Date.now());
+                const text = await res.text();
+                const lines = text.trim().split('\n');
                 
-                setTimeout(() => {
-                    btn.textContent = 'Copy';
-                    btn.classList.remove('copied');
-                }, 2000);
+                historicalLevels = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const parts = lines[i].split(',');
+                    if (parts.length >= 3) {
+                        const timestamp = parseDate(parts[0].trim());
+                        const r = parseFloat(parts[1]);
+                        const s = parseFloat(parts[2]);
+                        
+                        // Calculate BG and SG based on R/S range
+                        // BG is above R, SG is below S
+                        const range = r - s;
+                        const bg = r + range * 0.3; // 30% above resistance
+                        const sg = s - range * 0.3; // 30% below support
+                        
+                        if (!isNaN(timestamp) && !isNaN(r) && !isNaN(s)) {
+                            historicalLevels.push({ timestamp, r, s, bg, sg });
+                        }
+                    }
+                }
+                
+                historicalLevels.sort((a, b) => a.timestamp - b.timestamp);
+                document.getElementById('stat-days').textContent = historicalLevels.length;
+                rebuildLines();
+            } catch (e) {
+                console.error('Error loading history:', e);
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // INTERPOLATION & LINES - ALL 4 LINES CURVE
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        function interpolateLevel(timestamp) {
+            if (historicalLevels.length === 0) return null;
+            
+            let before = null, after = null;
+            for (let i = 0; i < historicalLevels.length; i++) {
+                if (historicalLevels[i].timestamp <= timestamp) before = historicalLevels[i];
+                if (historicalLevels[i].timestamp > timestamp && !after) after = historicalLevels[i];
+            }
+            
+            if (!after) return before ? { r: before.r, s: before.s, bg: before.bg, sg: before.sg } : null;
+            if (!before) return { r: after.r, s: after.s, bg: after.bg, sg: after.sg };
+            
+            const ratio = (timestamp - before.timestamp) / (after.timestamp - before.timestamp);
+            return {
+                r: before.r + (after.r - before.r) * ratio,
+                s: before.s + (after.s - before.s) * ratio,
+                bg: before.bg + (after.bg - before.bg) * ratio,
+                sg: before.sg + (after.sg - before.sg) * ratio,
+            };
+        }
+        
+        function rebuildLines() {
+            if (historicalLevels.length === 0 || candleData.length === 0) return;
+            
+            const rData = [], sData = [], bgData = [], sgData = [];
+            for (const candle of candleData) {
+                const levels = interpolateLevel(candle.time);
+                if (levels) {
+                    rData.push({ time: candle.time, value: levels.r });
+                    sData.push({ time: candle.time, value: levels.s });
+                    bgData.push({ time: candle.time, value: levels.bg });
+                    sgData.push({ time: candle.time, value: levels.sg });
+                }
+            }
+            
+            rSeries.setData(showLines.r ? rData : []);
+            sSeries.setData(showLines.s ? sData : []);
+            bgSeries.setData(showLines.bg ? bgData : []);
+            sgSeries.setData(showLines.sg ? sgData : []);
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // CHART
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        function initChart() {
+            const container = document.getElementById('chart');
+            chart = LightweightCharts.createChart(container, {
+                layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
+                grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
+                rightPriceScale: { borderColor: '#363a45' },
+                timeScale: { borderColor: '#363a45', timeVisible: true },
             });
+            
+            candleSeries = chart.addCandlestickSeries({
+                upColor: '#26a69a', downColor: '#ef5350',
+                borderUpColor: '#26a69a', borderDownColor: '#ef5350',
+                wickUpColor: '#26a69a', wickDownColor: '#ef5350',
+            });
+            
+            // ALL 4 lines curve - BG at top, then R, S, SG at bottom
+            bgSeries = chart.addLineSeries({ color: '#00bcd4', lineWidth: 2, title: 'BG', priceLineVisible: true, lastValueVisible: true, lineStyle: 2 });
+            rSeries = chart.addLineSeries({ color: '#2196f3', lineWidth: 3, title: 'R', priceLineVisible: true, lastValueVisible: true });
+            sSeries = chart.addLineSeries({ color: '#9c27b0', lineWidth: 3, title: 'S', priceLineVisible: true, lastValueVisible: true });
+            sgSeries = chart.addLineSeries({ color: '#ff9800', lineWidth: 2, title: 'SG', priceLineVisible: true, lastValueVisible: true, lineStyle: 2 });
+            
+            new ResizeObserver(() => chart.applyOptions({ width: container.clientWidth, height: container.clientHeight })).observe(container);
         }
         
-        function refreshData() {
-            document.getElementById('levels-display').innerHTML = 
-                '<div class="loading">Refreshing...</div>';
-            fetchData();
+        async function fetchCandles() {
+            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${tf}&limit=500`);
+            const data = await res.json();
+            
+            candleData = data.map(d => ({
+                time: d[0] / 1000,
+                open: +d[1], high: +d[2], low: +d[3], close: +d[4],
+            }));
+            
+            candleSeries.setData(candleData);
+            chart.timeScale().fitContent();
+            rebuildLines();
         }
         
-        // Initial load
-        fetchData();
+        function connectWS() {
+            if (ws) ws.close();
+            if (tf === '1d' || tf === '1w' || tf === '1M') return;
+            
+            ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${tf}`);
+            ws.onmessage = (e) => {
+                const { k } = JSON.parse(e.data);
+                const candleTime = k.t / 1000;
+                currentPrice = +k.c;
+                
+                candleSeries.update({ time: candleTime, open: +k.o, high: +k.h, low: +k.l, close: currentPrice });
+                
+                const levels = interpolateLevel(candleTime);
+                if (levels) {
+                    if (showLines.bg) bgSeries.update({ time: candleTime, value: levels.bg });
+                    if (showLines.r) rSeries.update({ time: candleTime, value: levels.r });
+                    if (showLines.s) sSeries.update({ time: candleTime, value: levels.s });
+                    if (showLines.sg) sgSeries.update({ time: candleTime, value: levels.sg });
+                    updateLevelDisplay(levels);
+                }
+                
+                document.getElementById('price').textContent = '$' + currentPrice.toLocaleString('en-US', { maximumFractionDigits: 0 });
+            };
+        }
         
-        // Auto-refresh every 5 minutes
-        setInterval(fetchData, 5 * 60 * 1000);
+        async function switchTimeframe(newTf) {
+            if (newTf === tf) return;
+            document.querySelectorAll('[data-tf]').forEach(b => b.disabled = true);
+            setStatus('Loading...', true);
+            tf = newTf;
+            try { await fetchCandles(); connectWS(); setStatus('Live', false); }
+            catch (e) { setStatus('Error', false); }
+            document.querySelectorAll('[data-tf]').forEach(b => b.disabled = false);
+        }
+        
+        function setStatus(text, loading) {
+            document.getElementById('status').textContent = text;
+            document.getElementById('status-dot').classList.toggle('loading', loading);
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // EVENTS
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        document.querySelectorAll('[data-tf]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-tf]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                switchTimeframe(btn.dataset.tf);
+            });
+        });
+        
+        document.getElementById('btn-refresh').addEventListener('click', calculateLive);
+        
+        document.querySelectorAll('[data-line]').forEach(toggle => {
+            toggle.addEventListener('click', function() {
+                this.classList.toggle('on');
+                showLines[this.dataset.line] = this.classList.contains('on');
+                rebuildLines();
+            });
+        });
+        
+        setInterval(() => {
+            if (nextUpdate) {
+                const secs = Math.max(0, Math.floor((nextUpdate - Date.now()) / 1000));
+                document.getElementById('stat-next').textContent = `${Math.floor(secs/60)}:${(secs%60).toString().padStart(2,'0')}`;
+            }
+        }, 1000);
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // INIT
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        initChart();
+        loadHistoricalLevels().then(() => {
+            fetchCandles().then(() => { connectWS(); calculateLive(); });
+        });
+        
+        setInterval(calculateLive, UPDATE_INTERVAL);
     </script>
 </body>
+
 </html>
