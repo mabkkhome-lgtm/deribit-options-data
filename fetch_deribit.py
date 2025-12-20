@@ -93,10 +93,9 @@ def parse_options_csv(csv_data, target_expiry_code):
             size = float(parts[5])
             entry_price_usd = float(parts[6])  # Already in USD!
             
-            # Include weekly expiries: today through +6 days
-            if expiry_code < target_expiry_code or expiry_code > target_expiry_code + 5:
+            # Tomorrow's expiry only
+            if expiry_code != target_expiry_code:
                 continue
-
             
             position = {
                 'type': 'call' if option_type == 0 else 'put',
@@ -154,81 +153,69 @@ def calculate_pnl_at_expiry(positions, underlying_price, is_buyer=True):
     return total_pnl
 
 
-def find_convergence_points(longs, shorts):
+def find_levels(longs, shorts):
     """
-    Find where buyer (long) and seller (short) PnL curves intersect.
+    Find R, S, BG, SG using Thales method:
+    - R = Highest strike with call interest concentration (max call OI)
+    - S = Highest strike with put interest concentration (max put OI)  
+    - BG = Positive gamma peak (where buyer gamma is highest)
+    - SG = Negative gamma peak (where seller gamma is most negative)
     """
-    # Get all strikes for range estimation
-    all_strikes = [p['strike'] for p in longs + shorts]
-    if not all_strikes:
-        return 85000, 100000
+    all_positions = longs + shorts
+    if not all_positions:
+        return 85000, 100000, 90000, 87000
     
-    min_strike = min(all_strikes)
-    max_strike = max(all_strikes)
+    # Calculate Open Interest per strike for CALLS and PUTS
+    call_oi = {}  # strike -> total size
+    put_oi = {}   # strike -> total size
     
-    # Search range
-    price_min = int(min_strike * 0.90)
-    price_max = int(max_strike * 1.10)
+    for p in all_positions:
+        if p['type'] == 'call':
+            call_oi[p['strike']] = call_oi.get(p['strike'], 0) + p['size']
+        else:
+            put_oi[p['strike']] = put_oi.get(p['strike'], 0) + p['size']
     
-    # Calculate PnL at many price points (10 USD steps for precision)
-    step = 10
-    prices = list(range(price_min, price_max, step))
-    
-    # Track crossings
-    intersections = []
-    prev_long_pnl = None
-    prev_short_pnl = None
-    
-    for price in prices:
-        long_pnl = calculate_pnl_at_expiry(longs, price, is_buyer=True)
-        short_pnl = calculate_pnl_at_expiry(shorts, price, is_buyer=False)
-        
-        if prev_long_pnl is not None:
-            prev_diff = prev_long_pnl - prev_short_pnl
-            curr_diff = long_pnl - short_pnl
-            
-            # Check for sign change (crossing)
-            if prev_diff * curr_diff < 0:
-                # Linear interpolation
-                t = abs(prev_diff) / (abs(prev_diff) + abs(curr_diff))
-                crossing_price = (price - step) + t * step
-                intersections.append(int(crossing_price))
-        
-        prev_long_pnl = long_pnl
-        prev_short_pnl = short_pnl
-    
-    print(f"   Found {len(intersections)} intersection points: {intersections}")
-    
-    if len(intersections) >= 2:
-        return intersections[0], intersections[-1]
-    elif len(intersections) == 1:
-        return intersections[0], intersections[0]
+    # R = Strike with highest CALL open interest
+    if call_oi:
+        r_strike, r_oi = max(call_oi.items(), key=lambda x: x[1])
+        r = int(r_strike)
     else:
-        # Fallback: weighted average of strikes
-        print("   ⚠️ No intersections found, using weighted average")
-        mean_strike = sum(all_strikes) / len(all_strikes)
-        return int(mean_strike * 0.95), int(mean_strike * 1.05)
-
-
-def find_gamma_levels(longs, shorts, support, resistance):
-    """
-    Find gamma levels (BG and SG) using weighted average of strikes.
-    BG = weighted average of BUYER (long) positions by size
-    SG = weighted average of SELLER (short) positions by size
-    """
-    # Calculate weighted average of buyer strikes
-    total_buyer_size = sum(p['size'] for p in longs)
-    if total_buyer_size > 0:
-        bg = sum(p['strike'] * p['size'] for p in longs) / total_buyer_size
-    else:
-        bg = (support + resistance) / 2
+        r = 100000
     
-    # Calculate weighted average of seller strikes
-    total_seller_size = sum(p['size'] for p in shorts)
-    if total_seller_size > 0:
-        sg = sum(p['strike'] * p['size'] for p in shorts) / total_seller_size
+    # S = Strike with highest PUT open interest
+    if put_oi:
+        s_strike, s_oi = max(put_oi.items(), key=lambda x: x[1])
+        s = int(s_strike)
     else:
-        sg = (support + resistance) / 2
+        s = 85000
+    
+    print(f"   R (max call OI): {r:,} ({r_oi:.1f} contracts)")
+    print(f"   S (max put OI): {s:,} ({s_oi:.1f} contracts)")
+    
+    # ==== GAMMA CALCULATION ====
+    # BG = weighted average of BUYER (long) strikes by size
+    # SG = weighted average of SELLER (short) strikes by size
+    
+    buyer_oi = {}
+    seller_oi = {}
+    for p in longs:
+        buyer_oi[p['strike']] = buyer_oi.get(p['strike'], 0) + p['size']
+    for p in shorts:
+        seller_oi[p['strike']] = seller_oi.get(p['strike'], 0) + p['size']
+    
+    # Weighted average of buyer strikes
+    if buyer_oi:
+        total_buyer = sum(buyer_oi.values())
+        bg = sum(strike * size for strike, size in buyer_oi.items()) / total_buyer
+    else:
+        bg = (r + s) / 2
+    
+    # Weighted average of seller strikes
+    if seller_oi:
+        total_seller = sum(seller_oi.values())
+        sg = sum(strike * size for strike, size in seller_oi.items()) / total_seller
+    else:
+        sg = (r + s) / 2
     
     bg = int(bg)
     sg = int(sg)
@@ -237,9 +224,12 @@ def find_gamma_levels(longs, shorts, support, resistance):
     if bg < sg:
         bg, sg = sg, bg
     
-    print(f"   Gamma: BG={bg} (buyer weighted avg), SG={sg} (seller weighted avg)")
+    print(f"   BG (buyer weighted avg): {bg:,}")
+    print(f"   SG (seller weighted avg): {sg:,}")
     
-    return bg, sg
+    return s, r, bg, sg  # Note: returns support, resistance, bg, sg
+
+
 
 def load_existing_data():
     """Load existing CSV data if it exists."""
@@ -303,13 +293,11 @@ def main():
             buyer_gamma = 90000
             seller_gamma = 87000
         else:
-            print("\n🎯 Finding convergence points...")
-            bottom_range, top_range = find_convergence_points(longs, shorts)
-            
-            print("\n📊 Finding gamma levels...")
-            buyer_gamma, seller_gamma = find_gamma_levels(longs, shorts, bottom_range, top_range)
+            print("\n🎯 Finding levels (OI concentration method)...")
+            bottom_range, top_range, buyer_gamma, seller_gamma = find_levels(longs, shorts)
         
         print(f"""
+
    Results:
    ─────────────────────────────────
    Resistance (R):   ${top_range:,}
