@@ -773,65 +773,53 @@
             if (r < s) [r, s] = [s, r];
 
             // ==== GAMMA CALCULATION ====
-            // Gamma is highest at ATM strikes. We calculate net gamma exposure at each price level.
-            // For options: Gamma = OI × (gamma factor based on distance to ATM)
-            // Buyers (longs) have POSITIVE gamma, Sellers (shorts) have NEGATIVE gamma
+            // Gamma = second derivative of PnL with respect to price
+            // BG = price where BUYER (long) gamma is maximum
+            // SG = price where SELLER (short) gamma is maximum (most negative value)
 
-            // Calculate net gamma at each strike
-            const gammaByStrike = {};
-            const allStrikes = [...new Set([...longs, ...shorts].map(p => p.strike))].sort((a, b) => a - b);
+            const step = 100;
+            const min = Math.min(s, ...allPos.map(p => p.strike)) - 2000;
+            const max = Math.max(r, ...allPos.map(p => p.strike)) + 2000;
 
-            for (const strike of allStrikes) {
-                let buyerGamma = 0, sellerGamma = 0;
+            let maxBuyerGamma = -Infinity, bgPrice = (r + s) / 2;
+            let minSellerGamma = Infinity, sgPrice = (r + s) / 2; // Most negative = minimum
 
-                for (const p of longs) {
-                    if (p.strike === strike) {
-                        buyerGamma += p.size; // Buyers have positive gamma
-                    }
+            // Calculate gamma (second derivative) at each price point
+            for (let price = min; price <= max; price += step) {
+                // Calculate PnL at price-step, price, price+step
+                const buyerPnL0 = calcPnL(longs, price - step, true);
+                const buyerPnL1 = calcPnL(longs, price, true);
+                const buyerPnL2 = calcPnL(longs, price + step, true);
+
+                const sellerPnL0 = calcPnL(shorts, price - step, false);
+                const sellerPnL1 = calcPnL(shorts, price, false);
+                const sellerPnL2 = calcPnL(shorts, price + step, false);
+
+                // Second derivative (gamma) = (f(x+h) - 2f(x) + f(x-h)) / h²
+                const buyerGamma = (buyerPnL2 - 2 * buyerPnL1 + buyerPnL0) / (step * step);
+                const sellerGamma = (sellerPnL2 - 2 * sellerPnL1 + sellerPnL0) / (step * step);
+
+                // Track max buyer gamma (BG = peak)
+                if (buyerGamma > maxBuyerGamma) {
+                    maxBuyerGamma = buyerGamma;
+                    bgPrice = price;
                 }
-                for (const p of shorts) {
-                    if (p.strike === strike) {
-                        sellerGamma += p.size; // Sellers have negative gamma (we track magnitude)
-                    }
-                }
 
-                gammaByStrike[strike] = { buyer: buyerGamma, seller: sellerGamma, net: buyerGamma - sellerGamma };
-            }
-
-            // BG = Upper boundary of gamma band (where cumulative buyer gamma is highest)
-            // SG = Lower boundary of gamma band (where cumulative seller gamma is highest)
-
-            // Weight strikes by gamma exposure, find weighted average for buyers (upper band) and sellers (lower band)
-            let totalBuyerGamma = 0, buyerWeightedSum = 0;
-            let totalSellerGamma = 0, sellerWeightedSum = 0;
-
-            for (const [strike, gamma] of Object.entries(gammaByStrike)) {
-                const strikeNum = +strike;
-                if (gamma.buyer > 0) {
-                    totalBuyerGamma += gamma.buyer;
-                    buyerWeightedSum += strikeNum * gamma.buyer;
-                }
-                if (gamma.seller > 0) {
-                    totalSellerGamma += gamma.seller;
-                    sellerWeightedSum += strikeNum * gamma.seller;
+                // Track min seller gamma (SG = most negative = trough)
+                if (sellerGamma < minSellerGamma) {
+                    minSellerGamma = sellerGamma;
+                    sgPrice = price;
                 }
             }
 
-            // BG = Weighted average of buyer gamma (should be higher)
-            // SG = Weighted average of seller gamma (should be lower)
-            let bg = totalBuyerGamma > 0 ? Math.round(buyerWeightedSum / totalBuyerGamma) : r;
-            let sg = totalSellerGamma > 0 ? Math.round(sellerWeightedSum / totalSellerGamma) : s;
+            let bg = Math.round(bgPrice);
+            let sg = Math.round(sgPrice);
 
-            // Ensure BG > SG (buyer gamma band is upper, seller is lower)
+            // Ensure BG > SG (buyer gamma band higher than seller)
             if (bg < sg) [bg, sg] = [sg, bg];
 
-            // Gamma should be INSIDE R/S range
-            if (bg > r) bg = r;
-            if (sg < s) sg = s;
-
             console.log(`🎯 Levels: R=${r}, S=${s}`);
-            console.log(`📊 Gamma: BG=${bg} (buyer avg), SG=${sg} (seller avg)`);
-            console.log(`   Buyer gamma total: ${totalBuyerGamma.toFixed(2)}, Seller gamma total: ${totalSellerGamma.toFixed(2)}`);
+            console.log(`📊 Gamma: BG=${bg} (max buyer γ=${maxBuyerGamma.toFixed(6)}), SG=${sg} (min seller γ=${minSellerGamma.toFixed(6)})`);
 
             return { r, s, bg, sg };
         }
