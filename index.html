@@ -887,20 +887,30 @@
                         // Store with EXACT timestamp - each minute gets its own entry
                         const timestamp = Math.floor(now.getTime() / 1000);
 
-                        // Add new calculation point (not replace)
-                        historicalLevels.push({ timestamp, ...lv });
-                        historicalLevels.sort((a, b) => a.timestamp - b.timestamp);
+                        // Prevent duplicate timestamps (if same second calculation)
+                        const lastTs = historicalLevels.length > 0 ? historicalLevels[historicalLevels.length - 1].timestamp : 0;
+                        if (timestamp > lastTs) {
+                            // Add new calculation point (not replace)
+                            historicalLevels.push({ timestamp, ...lv });
+                            historicalLevels.sort((a, b) => a.timestamp - b.timestamp);
 
-                        // Keep only last 7 days of minute data to avoid memory issues
-                        const sevenDaysAgo = timestamp - (7 * 24 * 60 * 60);
-                        historicalLevels = historicalLevels.filter(h => h.timestamp > sevenDaysAgo);
+                            // Keep only last 7 days of minute data to avoid memory issues
+                            const sevenDaysAgo = timestamp - (7 * 24 * 60 * 60);
+                            historicalLevels = historicalLevels.filter(h => h.timestamp > sevenDaysAgo);
 
-                        console.log(`✅ ${now.toLocaleTimeString()} Added level: R=${lv.r} S=${lv.s} (${historicalLevels.length} points)`);
+                            // Update data points counter
+                            document.getElementById('stat-days').textContent = historicalLevels.length;
+                            
+                            console.log(`✅ ${now.toLocaleTimeString()} Added level: R=${lv.r} S=${lv.s} (${historicalLevels.length} points)`);
+                        } else {
+                            console.log(`⏩ ${now.toLocaleTimeString()} Skipped duplicate timestamp`);
+                        }
 
                         updateLevelDisplay(lv);
                         document.getElementById('stat-time').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
                         rebuildLines();
                     }
+
                 }
                 setStatus('Live', false);
             } catch (e) { console.error(e); setStatus('Error', false); }
