@@ -495,88 +495,6 @@
             padding: 2px 4px;
             border-bottom: 1px solid #1e222d;
         }
-
-        /* About Modal */
-        .about-btn {
-            background: transparent !important;
-            border: none !important;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 2000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-overlay.show {
-            display: flex;
-        }
-
-        .modal {
-            background: #1e222d;
-            border-radius: 12px;
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-            padding: 24px;
-            color: #d1d4dc;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-        }
-
-        .modal h2 {
-            margin-bottom: 16px;
-            color: #fff;
-        }
-
-        .modal h3 {
-            margin: 16px 0 8px;
-            color: #2962ff;
-            font-size: 14px;
-        }
-
-        .modal p {
-            margin-bottom: 12px;
-            line-height: 1.6;
-            font-size: 13px;
-        }
-
-        .modal ul {
-            margin-left: 20px;
-            margin-bottom: 12px;
-        }
-
-        .modal li {
-            margin-bottom: 4px;
-            font-size: 13px;
-        }
-
-        .modal .close-btn {
-            background: #2962ff;
-            color: white;
-            border: none;
-            padding: 10px 24px;
-            border-radius: 6px;
-            cursor: pointer;
-            margin-top: 16px;
-        }
-
-        .modal .level-color {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 2px;
-            margin-right: 6px;
-            vertical-align: middle;
-        }
     </style>
 </head>
 
@@ -584,55 +502,8 @@
     <header class="header">
         <div class="logo">📊 Options Levels Tracker</div>
         <div><span class="price" id="price">$---,---</span><span class="price-change" id="price-change">--</span></div>
-        <div style="display:flex;align-items:center;gap:12px;">
-            <div class="status"><span class="status-dot" id="status-dot"></span><span id="status">Loading...</span>
-            </div>
-            <button class="about-btn" id="about-btn">ℹ️ About</button>
-        </div>
+        <div class="status"><span class="status-dot" id="status-dot"></span><span id="status">Loading...</span></div>
     </header>
-
-    <!-- About Modal -->
-    <div class="modal-overlay" id="about-modal">
-        <div class="modal">
-            <h2>📊 Options Levels Tracker</h2>
-            <p>A real-time dashboard that calculates and visualizes Bitcoin options-based support, resistance, and gamma
-                levels using live data from Deribit options market (via Thales OSS).</p>
-
-            <h3>📈 How It Works</h3>
-            <p>Every minute, the dashboard fetches real-time Bitcoin options trade data and calculates price levels
-                where <b>buyers</b> and <b>sellers</b> have competing profit/loss positions. These levels act as
-                <b>magnetic price zones</b> where the market tends to gravitate.
-            </p>
-
-            <h3>🎨 Level Bands</h3>
-            <ul>
-                <li><span class="level-color" style="background:#2196f3"></span><b>Resistance (R)</b> - Upper
-                    convergence zone where seller PnL exceeds buyer PnL</li>
-                <li><span class="level-color" style="background:#9c27b0"></span><b>Support (S)</b> - Lower convergence
-                    zone where buyer PnL exceeds seller PnL</li>
-                <li><span class="level-color" style="background:#00bcd4"></span><b>Buyer Gamma (BG)</b> - Upper edge of
-                    maximum gamma exposure zone</li>
-                <li><span class="level-color" style="background:#ff9800"></span><b>Seller Gamma (SG)</b> - Lower edge of
-                    maximum gamma exposure zone</li>
-            </ul>
-
-            <h3>⚡ Real-Time Updates</h3>
-            <p>The bands update <b>every minute</b> as new options trades come in. If a large trade shifts the market
-                positioning, you'll see the bands move dynamically on the chart - just like a moving average responds to
-                price changes.</p>
-
-            <h3>🔧 Technical Indicators</h3>
-            <p>Click "📈 Indicators" to add technical overlays like VWAP, EMA, SMA, Bollinger Bands, and more.</p>
-
-            <h3>📊 Data Sources</h3>
-            <ul>
-                <li><b>Options Data:</b> Thales OSS API (Deribit BTC options)</li>
-                <li><b>Price Data:</b> Binance BTC/USDT real-time</li>
-            </ul>
-
-            <button class="close-btn" id="close-modal">Got it!</button>
-        </div>
-    </div>
 
     <div class="main">
         <div class="chart-area">
@@ -803,7 +674,7 @@
                 </div>
                 <div class="stats-row"><span class="stats-label">Avg Strike</span><span id="stat-avgstrike">$--</span>
                 </div>
-                <div class="stats-row"><span class="stats-label">Data Points</span><span id="stat-days">--</span>
+                <div class="stats-row"><span class="stats-label">Historical Days</span><span id="stat-days">--</span>
                 </div>
                 <div class="stats-row"><span class="stats-label">Last Calc</span><span id="stat-time">--:--</span></div>
                 <div class="stats-row"><span class="stats-label">Next Update</span><span class="stats-value cyan"
@@ -868,174 +739,62 @@
         function calcKC(candles, p = 20, m = 1.5) { const u = [], l = []; for (let i = p - 1; i < candles.length; i++) { const s = candles.slice(i - p + 1, i + 1); const ema = s.reduce((a, c) => a + c.close, 0) / p; const atr = s.reduce((a, c) => a + Math.max(c.high - c.low, Math.abs(c.high - (s[s.indexOf(c) - 1]?.close || c.close)), Math.abs(c.low - (s[s.indexOf(c) - 1]?.close || c.close))), 0) / p; u.push({ time: candles[i].time, value: ema + m * atr }); l.push({ time: candles[i].time, value: ema - m * atr }); } return { upper: u, lower: l }; }
         function calcSupertrend(candles, p = 10, m = 3) { const res = []; for (let i = p - 1; i < candles.length; i++) { const s = candles.slice(i - p + 1, i + 1); const atr = s.reduce((a, c) => a + (c.high - c.low), 0) / p; const hl2 = (candles[i].high + candles[i].low) / 2; const up = hl2 - m * atr, dn = hl2 + m * atr; res.push({ time: candles[i].time, value: candles[i].close > dn ? up : dn }); } return res; }
 
-
-        // Use TODAY's expiry instead of tomorrow (matching Thales)
-        function getTodayExpiry() { 
-            const t = new Date(); 
-            t.setUTCHours(0, 0, 0, 0); 
-            const days = Math.floor((t - new Date(0)) / 864e5);
-            console.log(`📅 Today's expiry code: ${days} (${t.toISOString().split('T')[0]})`);
-            return days; 
-        }
-
-        function parseThalesCSV(csv, expiry) {
-            const longs = [], shorts = [];
-            let calls = 0, puts = 0, totalPremium = 0;
-            const sm = {};
-            const lines = csv.trim().split('\n');
+        function getTomorrowExpiry() { const t = new Date(); t.setDate(t.getDate() + 1); t.setUTCHours(0, 0, 0, 0); return Math.floor((t - new Date(0)) / 864e5); }
+        function parseThalesCSV(csv, expiry) { const longs = [], shorts = []; let calls = 0, puts = 0, totalPremium = 0; const sm = {}; for (const ln of csv.trim().split('\n')) { const p = ln.split(','); if (p.length < 7) continue; try { if (parseInt(p[1]) !== expiry) continue; const t = p[0] === '0' ? 'call' : 'put', strike = +p[2], size = +p[5], prem = +p[6]; if (p[4] === '0') longs.push({ type: t, strike, size, premium: prem }); else shorts.push({ type: t, strike, size, premium: prem }); if (t === 'call') calls++; else puts++; totalPremium += prem * size; sm[strike] = (sm[strike] || 0) + size; } catch { } } const ts = Object.entries(sm).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([s, z]) => ({ strike: +s, size: z })); return { longs, shorts, calls, puts, totalPremium, topStrikes: ts }; }
+        function calcPnL(pos, price, buyer) { let t = 0; for (const p of pos) { const intr = p.type === 'call' ? Math.max(price - p.strike, 0) : Math.max(p.strike - price, 0); t += (buyer ? intr - p.premium : p.premium - intr) * p.size; } return t; }
+        
+        function findLevels(longs, shorts) { 
+            const allPos = [...longs, ...shorts];
+            if (!allPos.length) return null;
             
-            console.log(`📊 Parsing ${lines.length} lines, looking for expiry ${expiry} to ${expiry + 1}`);
-            
-            let debugCount = 0;
-            for (const ln of lines) {
-                const p = ln.split(',');
-                if (p.length < 7) continue;
-                try {
-                    const expDay = parseInt(p[1]);
-                    
-                    // Debug first 5 matching lines
-                    if (debugCount < 5 && (expDay >= expiry && expDay <= expiry + 1)) {
-                        console.log(`   Line: type=${p[0]}, expiry=${p[1]}, strike=${p[2]}, side=${p[4]}, size=${p[5]}, prem=${p[6]}`);
-                        debugCount++;
-                    }
-                    
-                    if (expDay < expiry || expDay > expiry + 1) continue;
-
-                    const t = p[0] === '0' ? 'call' : 'put', strike = +p[2], size = +p[5], prem = +p[6];
-                    if (p[4] === '0') longs.push({ type: t, strike, size, premium: prem });
-                    else shorts.push({ type: t, strike, size, premium: prem });
-                    if (t === 'call') calls++; else puts++;
-                    totalPremium += prem * size;
-                    sm[strike] = (sm[strike] || 0) + size;
-                } catch { }
-            }
-            
-            const ts = Object.entries(sm).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([s, z]) => ({ strike: +s, size: z }));
-            
-            console.log(`📈 Parsed: ${longs.length} longs, ${shorts.length} shorts, ${calls} calls, ${puts} puts`);
-            if (ts.length > 0) console.log(`🎯 Top strikes: ${ts.slice(0,3).map(s => '$'+s.strike).join(', ')}`);
-            
-            return { longs, shorts, calls, puts, totalPremium, topStrikes: ts };
-        }
-
-        function calcPnL(pos, price, buyer) {
-            let t = 0;
-            for (const p of pos) {
-                const intr = p.type === 'call' ? Math.max(price - p.strike, 0) : Math.max(p.strike - price, 0);
-                t += (buyer ? intr - p.premium : p.premium - intr) * p.size;
-            }
-            return t;
-        }
-
-        function findLevels(longs, shorts) {
-            const strikes = [...longs, ...shorts].map(p => p.strike);
-            if (!strikes.length) return null;
-
-            const min = Math.floor(Math.min(...strikes) * 0.9);
-            const max = Math.ceil(Math.max(...strikes) * 1.1);
-            const step = 100; // Higher precision
-
-            // Find all crossover points
-            const crosses = [];
-            let prev = null;
-            let maxBuyerPnL = -Infinity, maxBuyerPrice = min;
-            let minSellerPnL = Infinity, minSellerPrice = min;
-
-            for (let pr = min; pr < max; pr += step) {
-                const buyerPnL = calcPnL(longs, pr, true);
-                const sellerPnL = calcPnL(shorts, pr, false);
-                const diff = buyerPnL - sellerPnL;
-
-                // Track crossover points (where buyer and seller curves cross)
-                if (prev !== null && prev * diff < 0) {
-                    // Refine crossover with binary search
-                    let lo = pr - step, hi = pr;
-                    while (hi - lo > 10) {
-                        const mid = (lo + hi) / 2;
-                        const midDiff = calcPnL(longs, mid, true) - calcPnL(shorts, mid, false);
-                        if (midDiff * prev < 0) hi = mid;
-                        else lo = mid;
-                    }
-                    crosses.push(Math.round((lo + hi) / 2));
+            // Calculate OI by strike for calls and puts
+            const callOI = {}, putOI = {};
+            for (const p of allPos) {
+                if (p.type === 'call') {
+                    callOI[p.strike] = (callOI[p.strike] || 0) + p.size;
+                } else {
+                    putOI[p.strike] = (putOI[p.strike] || 0) + p.size;
                 }
-
-                // Track max buyer PnL (gamma point)
-                if (buyerPnL > maxBuyerPnL) { maxBuyerPnL = buyerPnL; maxBuyerPrice = pr; }
-                if (sellerPnL < minSellerPnL) { minSellerPnL = sellerPnL; minSellerPrice = pr; }
-
-                prev = diff;
             }
-
-            let r, s, bg, sg;
-
-            if (crosses.length >= 2) {
-                s = Math.round(crosses[0]);
-                r = Math.round(crosses[crosses.length - 1]);
-            } else if (crosses.length === 1) {
-                s = r = Math.round(crosses[0]);
-            } else {
-                const avg = strikes.reduce((a, b) => a + b, 0) / strikes.length;
-                s = Math.round(avg * 0.97);
-                r = Math.round(avg * 1.03);
+            
+            // R = Strike with highest CALL open interest (where calls are concentrated = resistance)
+            let r = 0, maxCallOI = 0;
+            for (const [strike, oi] of Object.entries(callOI)) {
+                if (oi > maxCallOI) { maxCallOI = oi; r = +strike; }
             }
-
-            // Gamma points: where buyer/seller have max exposure
-            bg = Math.round(maxBuyerPrice);
-            sg = Math.round(minSellerPrice);
-
-            // Ensure BG > SG, swap if needed
+            
+            // S = Strike with highest PUT open interest (where puts are concentrated = support)
+            let s = 0, maxPutOI = 0;
+            for (const [strike, oi] of Object.entries(putOI)) {
+                if (oi > maxPutOI) { maxPutOI = oi; s = +strike; }
+            }
+            
+            // Gamma levels: Top 3 call strikes weighted avg (BG) and top 3 put strikes weighted avg (SG)
+            const callStrikes = Object.entries(callOI).sort((a, b) => b[1] - a[1]).slice(0, 3);
+            const putStrikes = Object.entries(putOI).sort((a, b) => b[1] - a[1]).slice(0, 3);
+            
+            let bg = r, sg = s;
+            if (callStrikes.length > 0) {
+                const totalOI = callStrikes.reduce((a, [_, oi]) => a + oi, 0);
+                bg = Math.round(callStrikes.reduce((a, [strike, oi]) => a + (+strike) * oi, 0) / totalOI);
+            }
+            if (putStrikes.length > 0) {
+                const totalOI = putStrikes.reduce((a, [_, oi]) => a + oi, 0);
+                sg = Math.round(putStrikes.reduce((a, [strike, oi]) => a + (+strike) * oi, 0) / totalOI);
+            }
+            
+            // Ensure R > S, BG > SG
+            if (r < s) [r, s] = [s, r];
             if (bg < sg) [bg, sg] = [sg, bg];
-
-            console.log(`🔍 Levels: R=${r}, S=${s}, BG=${bg}, SG=${sg} (${crosses.length} crosses)`);
-
-            return { r, s, bg, sg };
+            
+            console.log(`🎯 Levels: R=${r} (call OI=${maxCallOI.toFixed(2)}), S=${s} (put OI=${maxPutOI.toFixed(2)})`);
+            console.log(`📊 Gamma: BG=${bg}, SG=${sg}`);
+            
+            return { r, s, bg, sg }; 
         }
 
 
-        async function calculateLive() {
-            setStatus('Calculating...', true);
-            try {
-                const now = new Date(), start = new Date(now);
-                start.setUTCHours(0, 0, 0, 0);
-                const res = await fetch(`${PROXY}${THALES_API}?source=1&fromDate=${start.getTime()}&toDate=${now.getTime()}`);
-                thalesData = parseThalesCSV(await res.text(), getTodayExpiry());
-                updateThalesUI();
-                if (thalesData.longs.length && thalesData.shorts.length) {
-                    const lv = findLevels(thalesData.longs, thalesData.shorts);
-                    if (lv) {
-                        // Store with EXACT timestamp - each minute gets its own entry
-                        const timestamp = Math.floor(now.getTime() / 1000);
-
-                        // Prevent duplicate timestamps (if same second calculation)
-                        const lastTs = historicalLevels.length > 0 ? historicalLevels[historicalLevels.length - 1].timestamp : 0;
-                        if (timestamp > lastTs) {
-                            // Add new calculation point (not replace)
-                            historicalLevels.push({ timestamp, ...lv });
-                            historicalLevels.sort((a, b) => a.timestamp - b.timestamp);
-
-                            // Keep only last 7 days of minute data to avoid memory issues
-                            const sevenDaysAgo = timestamp - (7 * 24 * 60 * 60);
-                            historicalLevels = historicalLevels.filter(h => h.timestamp > sevenDaysAgo);
-
-                            // Update data points counter
-                            document.getElementById('stat-days').textContent = historicalLevels.length;
-
-                            console.log(`✅ ${now.toLocaleTimeString()} Added level: R=${lv.r} S=${lv.s} (${historicalLevels.length} points)`);
-                        } else {
-                            console.log(`⏩ ${now.toLocaleTimeString()} Skipped duplicate timestamp`);
-                        }
-
-                        updateLevelDisplay(lv);
-                        document.getElementById('stat-time').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                        rebuildLines();
-                    }
-
-                }
-                setStatus('Live', false);
-            } catch (e) { console.error(e); setStatus('Error', false); }
-            nextUpdate = Date.now() + UPDATE_INTERVAL;
-        }
-
+        async function calculateLive() { setStatus('Calculating...', true); try { const now = new Date(), start = new Date(now); start.setUTCHours(0, 0, 0, 0); const res = await fetch(`${PROXY}${THALES_API}?source=1&fromDate=${start.getTime()}&toDate=${now.getTime()}`); thalesData = parseThalesCSV(await res.text(), getTomorrowExpiry()); updateThalesUI(); if (thalesData.longs.length && thalesData.shorts.length) { const lv = findLevels(thalesData.longs, thalesData.shorts); if (lv) { const td = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000); const ex = historicalLevels.find(h => h.timestamp >= td); if (ex) Object.assign(ex, lv); else { historicalLevels.push({ timestamp: td, ...lv }); historicalLevels.sort((a, b) => a.timestamp - b.timestamp); } updateLevelDisplay(lv); document.getElementById('stat-time').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); rebuildLines(); } } setStatus('Live', false); } catch (e) { console.error(e); setStatus('Error', false); } nextUpdate = Date.now() + UPDATE_INTERVAL; }
         function updateThalesUI() { document.getElementById('stat-longs').textContent = thalesData.longs.length; document.getElementById('stat-shorts').textContent = thalesData.shorts.length; document.getElementById('stat-calls').textContent = thalesData.calls; document.getElementById('stat-puts').textContent = thalesData.puts; document.getElementById('stat-premium').textContent = '$' + (thalesData.totalPremium / 1000).toFixed(1) + 'K'; const all = [...thalesData.longs, ...thalesData.shorts].map(p => p.strike); document.getElementById('stat-avgstrike').textContent = '$' + (all.length ? (all.reduce((a, b) => a + b, 0) / all.length).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '--'); const lp = thalesData.longs.length / (thalesData.longs.length + thalesData.shorts.length || 1) * 100; document.getElementById('bias-long').style.width = lp + '%'; document.getElementById('bias-pct').textContent = Math.round(lp) + '% Long'; document.getElementById('strike-list').innerHTML = thalesData.topStrikes.map(s => `<div class="strike-item"><span>$${s.strike.toLocaleString()}</span><span>${s.size.toFixed(2)}</span></div>`).join(''); }
         function updateLevelDisplay(lv) { document.getElementById('r-val').textContent = '$' + lv.r.toLocaleString(); document.getElementById('s-val').textContent = '$' + lv.s.toLocaleString(); document.getElementById('bg-val').textContent = '$' + lv.bg.toLocaleString(); document.getElementById('sg-val').textContent = '$' + lv.sg.toLocaleString(); if (currentPrice > 0) { const pos = ((currentPrice - lv.sg) / (lv.bg - lv.sg) * 100); document.getElementById('pos-marker').style.left = Math.max(0, Math.min(100, pos)) + '%'; document.getElementById('pos-val').textContent = pos.toFixed(1) + '%'; } }
         function parseDate(ds) { const [d, m, y] = ds.split('/').map(Number); return new Date(y, m - 1, d).getTime() / 1000; }
@@ -1101,15 +860,15 @@
             new ResizeObserver(() => chart.applyOptions({ width: container.clientWidth, height: container.clientHeight })).observe(container);
         }
 
-        async function fetchCandles() {
-            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${tf}&limit=500`);
-            const d = await res.json();
-            candleData = d.map(x => ({ time: x[0] / 1000, open: +x[1], high: +x[2], low: +x[3], close: +x[4], volume: +x[5] }));
-            candleSeries.setData(candleData);
-            chart.timeScale().fitContent();
-            rebuildLines();
+        async function fetchCandles() { 
+            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${tf}&limit=500`); 
+            const d = await res.json(); 
+            candleData = d.map(x => ({ time: x[0] / 1000, open: +x[1], high: +x[2], low: +x[3], close: +x[4], volume: +x[5] })); 
+            candleSeries.setData(candleData); 
+            chart.timeScale().fitContent(); 
+            rebuildLines(); 
             // Fetch 24hr change from ticker
-            try { const ticker = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT').then(r => r.json()); openPrice = +ticker.openPrice; updatePriceChange(+ticker.lastPrice); } catch (e) { openPrice = candleData[0]?.open || 0; }
+            try { const ticker = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT').then(r=>r.json()); openPrice = +ticker.openPrice; updatePriceChange(+ticker.lastPrice); } catch(e) { openPrice = candleData[0]?.open || 0; }
         }
         function updatePriceChange(price) { const chg = ((price - openPrice) / openPrice * 100).toFixed(2); const ce = document.getElementById('price-change'); ce.textContent = (chg >= 0 ? '+' : '') + chg + '%'; ce.className = 'price-change ' + (chg >= 0 ? 'up' : 'down'); }
         function connectWS() { if (ws) ws.close(); if (tf === '1d' || tf === '1w') return; ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${tf}`); ws.onmessage = e => { const { k } = JSON.parse(e.data); currentPrice = +k.c; candleSeries.update({ time: k.t / 1000, open: +k.o, high: +k.h, low: +k.l, close: currentPrice }); const lv = interpolateLevel(k.t / 1000); if (lv) { if (showLines.r) rSeries.update({ time: k.t / 1000, value: lv.r }); if (showLines.s) sSeries.update({ time: k.t / 1000, value: lv.s }); if (showLines.bg) bgSeries.update({ time: k.t / 1000, value: lv.bg }); if (showLines.sg) sgSeries.update({ time: k.t / 1000, value: lv.sg }); updateLevelDisplay(lv); } document.getElementById('price').textContent = '$' + currentPrice.toLocaleString('en-US', { maximumFractionDigits: 0 }); updatePriceChange(currentPrice); }; }
@@ -1140,13 +899,7 @@
         // Init
         initChart();
         loadHistoricalLevels().then(() => { fetchCandles().then(() => { connectWS(); calculateLive(); }); });
-        // About Modal
-        document.getElementById('about-btn').addEventListener('click', () => document.getElementById('about-modal').classList.add('show'));
-        document.getElementById('close-modal').addEventListener('click', () => document.getElementById('about-modal').classList.remove('show'));
-        document.getElementById('about-modal').addEventListener('click', (e) => { if (e.target.id === 'about-modal') document.getElementById('about-modal').classList.remove('show'); });
-
         setInterval(calculateLive, UPDATE_INTERVAL);
-
     </script>
 </body>
 
