@@ -145,7 +145,7 @@
             flex: 1;
         }
 
-        /* Indicator Menu - TradingView Style */
+        /* Indicator Menu */
         .indicator-menu-wrapper {
             position: relative;
         }
@@ -253,7 +253,6 @@
             margin-right: 8px;
         }
 
-        /* Active Indicators Bar */
         .active-indicators {
             display: flex;
             gap: 4px;
@@ -478,11 +477,6 @@
             height: 100%;
         }
 
-        .bias-short {
-            background: #f44336;
-            height: 100%;
-        }
-
         .strike-list {
             max-height: 100px;
             overflow-y: auto;
@@ -508,7 +502,6 @@
     <div class="main">
         <div class="chart-area">
             <div class="toolbar">
-                <!-- Timeframe Buttons -->
                 <button data-tf="1m">1m</button>
                 <button data-tf="5m">5m</button>
                 <button data-tf="15m" class="active">15m</button>
@@ -517,7 +510,6 @@
                 <button data-tf="1d">1D</button>
                 <div class="sep"></div>
 
-                <!-- Indicators Menu (TradingView Style) -->
                 <div class="indicator-menu-wrapper">
                     <button class="indicator-btn" id="indicators-btn">📈 Indicators</button>
                     <div class="indicator-menu" id="indicator-menu">
@@ -550,24 +542,8 @@
                             </div>
                             <div class="check">✓</div>
                         </div>
-                        <div class="indicator-item" data-ind="ema50"><span class="indicator-color"
-                                style="background:#ab47bc"></span>
-                            <div>
-                                <div class="name">EMA 50</div>
-                                <div class="desc">Exponential Moving Average</div>
-                            </div>
-                            <div class="check">✓</div>
-                        </div>
-                        <div class="indicator-item" data-ind="sma20"><span class="indicator-color"
-                                style="background:#78909c"></span>
-                            <div>
-                                <div class="name">SMA 20</div>
-                                <div class="desc">Simple Moving Average</div>
-                            </div>
-                            <div class="check">✓</div>
-                        </div>
                         <div class="indicator-item" data-ind="sma50"><span class="indicator-color"
-                                style="background:#607d8b"></span>
+                                style="background:#ab47bc"></span>
                             <div>
                                 <div class="name">SMA 50</div>
                                 <div class="desc">Simple Moving Average</div>
@@ -591,29 +567,10 @@
                             </div>
                             <div class="check">✓</div>
                         </div>
-                        <div class="indicator-item" data-ind="kc"><span class="indicator-color"
-                                style="background:#26c6da"></span>
-                            <div>
-                                <div class="name">Keltner Channel</div>
-                                <div class="desc">20 period ATR channel</div>
-                            </div>
-                            <div class="check">✓</div>
-                        </div>
-                        <div class="indicator-category">Trend</div>
-                        <div class="indicator-item" data-ind="supertrend"><span class="indicator-color"
-                                style="background:#4caf50"></span>
-                            <div>
-                                <div class="name">Supertrend</div>
-                                <div class="desc">ATR based trend indicator</div>
-                            </div>
-                            <div class="check">✓</div>
-                        </div>
                     </div>
                 </div>
 
-                <!-- Active Indicators Tags -->
                 <div class="active-indicators" id="active-indicators"></div>
-
                 <div style="flex:1"></div>
                 <button class="btn-refresh" id="btn-refresh">🔄 Update</button>
             </div>
@@ -656,11 +613,10 @@
                 </div>
                 <div class="bias-bar">
                     <div class="bias-long" id="bias-long" style="width:50%"></div>
-                    <div class="bias-short" style="width:50%"></div>
+                    <div style="width:50%;background:#f44336;height:100%"></div>
                 </div>
                 <div style="display:flex;justify-content:space-between;font-size:9px;color:#787b86;margin-top:2px;">
-                    <span>Bulls</span><span id="bias-pct">50%</span><span>Bears</span>
-                </div>
+                    <span>Bulls</span><span id="bias-pct">50%</span><span>Bears</span></div>
             </div>
 
             <div class="panel">
@@ -672,9 +628,7 @@
                 <div class="panel-title">📊 Stats</div>
                 <div class="stats-row"><span class="stats-label">Total Premium</span><span id="stat-premium">$--</span>
                 </div>
-                <div class="stats-row"><span class="stats-label">Avg Strike</span><span id="stat-avgstrike">$--</span>
-                </div>
-                <div class="stats-row"><span class="stats-label">Historical Days</span><span id="stat-days">--</span>
+                <div class="stats-row"><span class="stats-label">Calculations Today</span><span id="stat-calcs">0</span>
                 </div>
                 <div class="stats-row"><span class="stats-label">Last Calc</span><span id="stat-time">--:--</span></div>
                 <div class="stats-row"><span class="stats-label">Next Update</span><span class="stats-value cyan"
@@ -701,56 +655,241 @@
 
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <script>
-        const CSV_URL = 'https://raw.githubusercontent.com/mabkkhome-lgtm/deribit-options-data/main/data/btc_levels.csv';
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // CONFIG
+        // ═══════════════════════════════════════════════════════════════════════════════
         const THALES_API = 'https://oss.thales-mfi.com/api/MarketScreener/FetchOptions';
         const PROXY = 'https://corsproxy.io/?';
-        const UPDATE_INTERVAL = 60000;
+        const UPDATE_INTERVAL = 60000; // 1 minute
 
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // STATE - Levels stored per minute like a moving average
+        // ═══════════════════════════════════════════════════════════════════════════════
         let chart, candleSeries, rSeries, sSeries, bgSeries, sgSeries;
         let indicatorSeries = {};
         let tf = '15m';
         let ws = null;
         let nextUpdate = null;
-        let historicalLevels = [];
         let candleData = [];
         let showLines = { r: true, s: true, bg: true, sg: true };
         let activeIndicators = {};
         let currentPrice = 0, openPrice = 0;
         let thalesData = { longs: [], shorts: [], calls: 0, puts: 0, totalPremium: 0, topStrikes: [] };
 
-        // Indicator definitions
+        // Level history - like MA data, one point per calculation
+        let levelHistory = { r: [], s: [], bg: [], sg: [] };
+        let latestLevels = null;
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // INDICATOR CALCULATIONS
+        // ═══════════════════════════════════════════════════════════════════════════════
         const INDICATORS = {
             vwap: { name: 'VWAP', color: '#ffeb3b', calc: calcVWAP },
             ema9: { name: 'EMA 9', color: '#26a69a', calc: (c) => calcEMA(c, 9) },
             ema20: { name: 'EMA 20', color: '#42a5f5', calc: (c) => calcEMA(c, 20) },
-            ema50: { name: 'EMA 50', color: '#ab47bc', calc: (c) => calcEMA(c, 50) },
-            sma20: { name: 'SMA 20', color: '#78909c', calc: (c) => calcSMA(c, 20) },
-            sma50: { name: 'SMA 50', color: '#607d8b', calc: (c) => calcSMA(c, 50) },
+            sma50: { name: 'SMA 50', color: '#ab47bc', calc: (c) => calcSMA(c, 50) },
             sma200: { name: 'SMA 200', color: '#ff7043', calc: (c) => calcSMA(c, 200) },
-            bb: { name: 'BB', color: '#787b86', calc: calcBB, isBand: true },
-            kc: { name: 'KC', color: '#26c6da', calc: calcKC, isBand: true },
-            supertrend: { name: 'Supertrend', color: '#4caf50', calc: calcSupertrend }
+            bb: { name: 'BB', color: '#787b86', calc: calcBB, isBand: true }
         };
 
         function calcVWAP(candles) { let cvp = 0, cv = 0; return candles.map(c => { const tp = (c.high + c.low + c.close) / 3; cvp += tp * (c.volume || 1); cv += (c.volume || 1); return { time: c.time, value: cvp / cv }; }); }
         function calcEMA(candles, p) { const k = 2 / (p + 1); let ema = candles[0]?.close || 0; return candles.map(c => { ema = c.close * k + ema * (1 - k); return { time: c.time, value: ema }; }); }
         function calcSMA(candles, p) { return candles.map((c, i) => { if (i < p - 1) return null; const slice = candles.slice(i - p + 1, i + 1); return { time: c.time, value: slice.reduce((a, b) => a + b.close, 0) / p }; }).filter(Boolean); }
         function calcBB(candles, p = 20, m = 2) { const u = [], l = []; for (let i = p - 1; i < candles.length; i++) { const s = candles.slice(i - p + 1, i + 1).map(c => c.close); const a = s.reduce((x, y) => x + y, 0) / p; const std = Math.sqrt(s.reduce((x, y) => x + (y - a) ** 2, 0) / p); u.push({ time: candles[i].time, value: a + m * std }); l.push({ time: candles[i].time, value: a - m * std }); } return { upper: u, lower: l }; }
-        function calcKC(candles, p = 20, m = 1.5) { const u = [], l = []; for (let i = p - 1; i < candles.length; i++) { const s = candles.slice(i - p + 1, i + 1); const ema = s.reduce((a, c) => a + c.close, 0) / p; const atr = s.reduce((a, c) => a + Math.max(c.high - c.low, Math.abs(c.high - (s[s.indexOf(c) - 1]?.close || c.close)), Math.abs(c.low - (s[s.indexOf(c) - 1]?.close || c.close))), 0) / p; u.push({ time: candles[i].time, value: ema + m * atr }); l.push({ time: candles[i].time, value: ema - m * atr }); } return { upper: u, lower: l }; }
-        function calcSupertrend(candles, p = 10, m = 3) { const res = []; for (let i = p - 1; i < candles.length; i++) { const s = candles.slice(i - p + 1, i + 1); const atr = s.reduce((a, c) => a + (c.high - c.low), 0) / p; const hl2 = (candles[i].high + candles[i].low) / 2; const up = hl2 - m * atr, dn = hl2 + m * atr; res.push({ time: candles[i].time, value: candles[i].close > dn ? up : dn }); } return res; }
 
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // THALES CALCULATION
+        // ═══════════════════════════════════════════════════════════════════════════════
         function getTomorrowExpiry() { const t = new Date(); t.setDate(t.getDate() + 1); t.setUTCHours(0, 0, 0, 0); return Math.floor((t - new Date(0)) / 864e5); }
-        function parseThalesCSV(csv, expiry) { const longs = [], shorts = []; let calls = 0, puts = 0, totalPremium = 0; const sm = {}; for (const ln of csv.trim().split('\n')) { const p = ln.split(','); if (p.length < 7) continue; try { if (parseInt(p[1]) !== expiry) continue; const t = p[0] === '0' ? 'call' : 'put', strike = +p[2], size = +p[5], prem = +p[6]; if (p[4] === '0') longs.push({ type: t, strike, size, premium: prem }); else shorts.push({ type: t, strike, size, premium: prem }); if (t === 'call') calls++; else puts++; totalPremium += prem * size; sm[strike] = (sm[strike] || 0) + size; } catch { } } const ts = Object.entries(sm).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([s, z]) => ({ strike: +s, size: z })); return { longs, shorts, calls, puts, totalPremium, topStrikes: ts }; }
-        function calcPnL(pos, price, buyer) { let t = 0; for (const p of pos) { const intr = p.type === 'call' ? Math.max(price - p.strike, 0) : Math.max(p.strike - price, 0); t += (buyer ? intr - p.premium : p.premium - intr) * p.size; } return t; }
-        function findLevels(longs, shorts) { const strikes = [...longs, ...shorts].map(p => p.strike); if (!strikes.length) return null; const min = Math.floor(Math.min(...strikes) * 0.85), max = Math.ceil(Math.max(...strikes) * 1.15), crosses = []; let prev = null; for (let pr = min; pr < max; pr += 50) { const d = calcPnL(longs, pr, true) - calcPnL(shorts, pr, false); if (prev !== null && prev * d < 0) crosses.push(pr); prev = d; } let r, s; if (crosses.length >= 2) { s = crosses[0]; r = crosses[crosses.length - 1]; } else if (crosses.length === 1) { s = r = crosses[0]; } else { const avg = strikes.reduce((a, b) => a + b, 0) / strikes.length; s = Math.round(avg * 0.97); r = Math.round(avg * 1.03); } const gp = (r + s) / 2, hw = (r - s) * 0.15; return { r, s, bg: Math.round(gp + hw), sg: Math.round(gp - hw) }; }
 
-        async function calculateLive() { setStatus('Calculating...', true); try { const now = new Date(), start = new Date(now); start.setUTCHours(0, 0, 0, 0); const res = await fetch(`${PROXY}${THALES_API}?source=1&fromDate=${start.getTime()}&toDate=${now.getTime()}`); thalesData = parseThalesCSV(await res.text(), getTomorrowExpiry()); updateThalesUI(); if (thalesData.longs.length && thalesData.shorts.length) { const lv = findLevels(thalesData.longs, thalesData.shorts); if (lv) { const td = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000); const ex = historicalLevels.find(h => h.timestamp >= td); if (ex) Object.assign(ex, lv); else { historicalLevels.push({ timestamp: td, ...lv }); historicalLevels.sort((a, b) => a.timestamp - b.timestamp); } updateLevelDisplay(lv); document.getElementById('stat-time').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); rebuildLines(); } } setStatus('Live', false); } catch (e) { console.error(e); setStatus('Error', false); } nextUpdate = Date.now() + UPDATE_INTERVAL; }
-        function updateThalesUI() { document.getElementById('stat-longs').textContent = thalesData.longs.length; document.getElementById('stat-shorts').textContent = thalesData.shorts.length; document.getElementById('stat-calls').textContent = thalesData.calls; document.getElementById('stat-puts').textContent = thalesData.puts; document.getElementById('stat-premium').textContent = '$' + (thalesData.totalPremium / 1000).toFixed(1) + 'K'; const all = [...thalesData.longs, ...thalesData.shorts].map(p => p.strike); document.getElementById('stat-avgstrike').textContent = '$' + (all.length ? (all.reduce((a, b) => a + b, 0) / all.length).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '--'); const lp = thalesData.longs.length / (thalesData.longs.length + thalesData.shorts.length || 1) * 100; document.getElementById('bias-long').style.width = lp + '%'; document.getElementById('bias-pct').textContent = Math.round(lp) + '% Long'; document.getElementById('strike-list').innerHTML = thalesData.topStrikes.map(s => `<div class="strike-item"><span>$${s.strike.toLocaleString()}</span><span>${s.size.toFixed(2)}</span></div>`).join(''); }
-        function updateLevelDisplay(lv) { document.getElementById('r-val').textContent = '$' + lv.r.toLocaleString(); document.getElementById('s-val').textContent = '$' + lv.s.toLocaleString(); document.getElementById('bg-val').textContent = '$' + lv.bg.toLocaleString(); document.getElementById('sg-val').textContent = '$' + lv.sg.toLocaleString(); if (currentPrice > 0) { const pos = ((currentPrice - lv.sg) / (lv.bg - lv.sg) * 100); document.getElementById('pos-marker').style.left = Math.max(0, Math.min(100, pos)) + '%'; document.getElementById('pos-val').textContent = pos.toFixed(1) + '%'; } }
-        function parseDate(ds) { const [d, m, y] = ds.split('/').map(Number); return new Date(y, m - 1, d).getTime() / 1000; }
-        async function loadHistoricalLevels() { try { const res = await fetch(CSV_URL + '?t=' + Date.now()); const txt = await res.text(); historicalLevels = []; for (const ln of txt.trim().split('\n').slice(1)) { const p = ln.split(','); if (p.length >= 3) { const ts = parseDate(p[0].trim()), r = +p[1], s = +p[2], rng = r - s; if (!isNaN(ts) && !isNaN(r) && !isNaN(s)) historicalLevels.push({ timestamp: ts, r, s, bg: r + rng * 0.3, sg: s - rng * 0.3 }); } } historicalLevels.sort((a, b) => a.timestamp - b.timestamp); document.getElementById('stat-days').textContent = historicalLevels.length; rebuildLines(); } catch (e) { console.error(e); } }
-        function interpolateLevel(ts) { if (!historicalLevels.length) return null; let bf = null, af = null; for (const h of historicalLevels) { if (h.timestamp <= ts) bf = h; if (h.timestamp > ts && !af) af = h; } if (!af) return bf; if (!bf) return af; const r = (ts - bf.timestamp) / (af.timestamp - bf.timestamp); return { r: bf.r + (af.r - bf.r) * r, s: bf.s + (af.s - bf.s) * r, bg: bf.bg + (af.bg - bf.bg) * r, sg: bf.sg + (af.sg - bf.sg) * r }; }
-        function rebuildLines() { if (!historicalLevels.length || !candleData.length) return; const rd = [], sd = [], bgd = [], sgd = []; for (const c of candleData) { const lv = interpolateLevel(c.time); if (lv) { rd.push({ time: c.time, value: lv.r }); sd.push({ time: c.time, value: lv.s }); bgd.push({ time: c.time, value: lv.bg }); sgd.push({ time: c.time, value: lv.sg }); } } rSeries.setData(showLines.r ? rd : []); sSeries.setData(showLines.s ? sd : []); bgSeries.setData(showLines.bg ? bgd : []); sgSeries.setData(showLines.sg ? sgd : []); rebuildIndicators(); }
+        function parseThalesCSV(csv, expiry) {
+            const longs = [], shorts = [];
+            let calls = 0, puts = 0, totalPremium = 0;
+            const sm = {};
+            for (const ln of csv.trim().split('\n')) {
+                const p = ln.split(',');
+                if (p.length < 7) continue;
+                try {
+                    if (parseInt(p[1]) !== expiry) continue;
+                    const t = p[0] === '0' ? 'call' : 'put', strike = +p[2], size = +p[5], prem = +p[6];
+                    if (p[4] === '0') longs.push({ type: t, strike, size, premium: prem });
+                    else shorts.push({ type: t, strike, size, premium: prem });
+                    if (t === 'call') calls++; else puts++;
+                    totalPremium += prem * size;
+                    sm[strike] = (sm[strike] || 0) + size;
+                } catch { }
+            }
+            const ts = Object.entries(sm).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([s, z]) => ({ strike: +s, size: z }));
+            return { longs, shorts, calls, puts, totalPremium, topStrikes: ts };
+        }
+
+        function calcPnL(pos, price, buyer) {
+            let t = 0;
+            for (const p of pos) {
+                const intr = p.type === 'call' ? Math.max(price - p.strike, 0) : Math.max(p.strike - price, 0);
+                t += (buyer ? intr - p.premium : p.premium - intr) * p.size;
+            }
+            return t;
+        }
+
+        function findLevels(longs, shorts) {
+            const strikes = [...longs, ...shorts].map(p => p.strike);
+            if (!strikes.length) return null;
+
+            const min = Math.floor(Math.min(...strikes) * 0.85);
+            const max = Math.ceil(Math.max(...strikes) * 1.15);
+            const crosses = [];
+            let prev = null;
+
+            for (let pr = min; pr < max; pr += 50) {
+                const d = calcPnL(longs, pr, true) - calcPnL(shorts, pr, false);
+                if (prev !== null && prev * d < 0) crosses.push(pr);
+                prev = d;
+            }
+
+            let r, s;
+            if (crosses.length >= 2) { s = crosses[0]; r = crosses[crosses.length - 1]; }
+            else if (crosses.length === 1) { s = r = crosses[0]; }
+            else { const avg = strikes.reduce((a, b) => a + b, 0) / strikes.length; s = Math.round(avg * 0.97); r = Math.round(avg * 1.03); }
+
+            const gp = (r + s) / 2, hw = (r - s) * 0.15;
+            return { r, s, bg: Math.round(gp + hw), sg: Math.round(gp - hw) };
+        }
+
+        async function calculateLive() {
+            setStatus('Calculating...', true);
+            try {
+                const now = new Date();
+                const start = new Date(now); start.setUTCHours(0, 0, 0, 0);
+                const res = await fetch(`${PROXY}${THALES_API}?source=1&fromDate=${start.getTime()}&toDate=${now.getTime()}`);
+                thalesData = parseThalesCSV(await res.text(), getTomorrowExpiry());
+                updateThalesUI();
+
+                if (thalesData.longs.length && thalesData.shorts.length) {
+                    const levels = findLevels(thalesData.longs, thalesData.shorts);
+                    if (levels) {
+                        latestLevels = levels;
+                        const timestamp = Math.floor(now.getTime() / 1000);
+
+                        // Add to history - like MA, each point has a timestamp
+                        levelHistory.r.push({ time: timestamp, value: levels.r });
+                        levelHistory.s.push({ time: timestamp, value: levels.s });
+                        levelHistory.bg.push({ time: timestamp, value: levels.bg });
+                        levelHistory.sg.push({ time: timestamp, value: levels.sg });
+
+                        // Keep last 24 hours of data (1440 points at 1-min interval)
+                        const maxPoints = 1440;
+                        if (levelHistory.r.length > maxPoints) {
+                            levelHistory.r = levelHistory.r.slice(-maxPoints);
+                            levelHistory.s = levelHistory.s.slice(-maxPoints);
+                            levelHistory.bg = levelHistory.bg.slice(-maxPoints);
+                            levelHistory.sg = levelHistory.sg.slice(-maxPoints);
+                        }
+
+                        updateLevelDisplay(levels);
+                        document.getElementById('stat-time').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        document.getElementById('stat-calcs').textContent = levelHistory.r.length;
+
+                        rebuildLevelLines();
+                        console.log(`✅ ${now.toLocaleTimeString()} R=${levels.r} S=${levels.s} BG=${levels.bg} SG=${levels.sg}`);
+                    }
+                }
+                setStatus('Live', false);
+            } catch (e) { console.error(e); setStatus('Error', false); }
+            nextUpdate = Date.now() + UPDATE_INTERVAL;
+        }
+
+        function updateThalesUI() {
+            document.getElementById('stat-longs').textContent = thalesData.longs.length;
+            document.getElementById('stat-shorts').textContent = thalesData.shorts.length;
+            document.getElementById('stat-calls').textContent = thalesData.calls;
+            document.getElementById('stat-puts').textContent = thalesData.puts;
+            document.getElementById('stat-premium').textContent = '$' + (thalesData.totalPremium / 1000).toFixed(1) + 'K';
+            const lp = thalesData.longs.length / (thalesData.longs.length + thalesData.shorts.length || 1) * 100;
+            document.getElementById('bias-long').style.width = lp + '%';
+            document.getElementById('bias-pct').textContent = Math.round(lp) + '% Long';
+            document.getElementById('strike-list').innerHTML = thalesData.topStrikes.map(s =>
+                `<div class="strike-item"><span>$${s.strike.toLocaleString()}</span><span>${s.size.toFixed(2)}</span></div>`
+            ).join('');
+        }
+
+        function updateLevelDisplay(lv) {
+            document.getElementById('r-val').textContent = '$' + lv.r.toLocaleString();
+            document.getElementById('s-val').textContent = '$' + lv.s.toLocaleString();
+            document.getElementById('bg-val').textContent = '$' + lv.bg.toLocaleString();
+            document.getElementById('sg-val').textContent = '$' + lv.sg.toLocaleString();
+            if (currentPrice > 0) {
+                const pos = ((currentPrice - lv.sg) / (lv.bg - lv.sg) * 100);
+                document.getElementById('pos-marker').style.left = Math.max(0, Math.min(100, pos)) + '%';
+                document.getElementById('pos-val').textContent = pos.toFixed(1) + '%';
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // REBUILD LINES - Like MA, extends line to current candle
+        // ═══════════════════════════════════════════════════════════════════════════════
+        function rebuildLevelLines() {
+            if (!candleData.length) return;
+
+            // For options levels, we extend the line from calculation points across all candles
+            // This makes them behave like a stepping MA
+            const rData = [], sData = [], bgData = [], sgData = [];
+
+            if (levelHistory.r.length === 0 && latestLevels) {
+                // If no history yet, use latest for all candles
+                for (const c of candleData) {
+                    rData.push({ time: c.time, value: latestLevels.r });
+                    sData.push({ time: c.time, value: latestLevels.s });
+                    bgData.push({ time: c.time, value: latestLevels.bg });
+                    sgData.push({ time: c.time, value: latestLevels.sg });
+                }
+            } else if (levelHistory.r.length > 0) {
+                // Interpolate between calculation points for each candle
+                for (const c of candleData) {
+                    const lv = getLevelAtTime(c.time);
+                    if (lv) {
+                        rData.push({ time: c.time, value: lv.r });
+                        sData.push({ time: c.time, value: lv.s });
+                        bgData.push({ time: c.time, value: lv.bg });
+                        sgData.push({ time: c.time, value: lv.sg });
+                    }
+                }
+            }
+
+            if (showLines.r) rSeries.setData(rData); else rSeries.setData([]);
+            if (showLines.s) sSeries.setData(sData); else sSeries.setData([]);
+            if (showLines.bg) bgSeries.setData(bgData); else bgSeries.setData([]);
+            if (showLines.sg) sgSeries.setData(sgData); else sgSeries.setData([]);
+
+            rebuildIndicators();
+        }
+
+        function getLevelAtTime(timestamp) {
+            if (levelHistory.r.length === 0) return latestLevels;
+
+            // Find the level at or just before this timestamp (step function like MA)
+            let r = null, s = null, bg = null, sg = null;
+
+            for (let i = levelHistory.r.length - 1; i >= 0; i--) {
+                if (levelHistory.r[i].time <= timestamp) {
+                    r = levelHistory.r[i].value;
+                    s = levelHistory.s[i].value;
+                    bg = levelHistory.bg[i].value;
+                    sg = levelHistory.sg[i].value;
+                    break;
+                }
+            }
+
+            // If timestamp is before any calculation, use first available
+            if (r === null && levelHistory.r.length > 0) {
+                r = levelHistory.r[0].value;
+                s = levelHistory.s[0].value;
+                bg = levelHistory.bg[0].value;
+                sg = levelHistory.sg[0].value;
+            }
+
+            return r !== null ? { r, s, bg, sg } : latestLevels;
+        }
 
         function rebuildIndicators() {
             if (!candleData.length) return;
@@ -788,16 +927,27 @@
             rebuildIndicators();
         }
 
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // CHART
+        // ═══════════════════════════════════════════════════════════════════════════════
         function initChart() {
             const container = document.getElementById('chart');
-            chart = LightweightCharts.createChart(container, { layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' }, grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } }, rightPriceScale: { borderColor: '#363a45' }, timeScale: { borderColor: '#363a45', timeVisible: true } });
-            candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderUpColor: '#26a69a', borderDownColor: '#ef5350', wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
-            bgSeries = chart.addLineSeries({ color: '#00bcd4', lineWidth: 2, lineStyle: 2 });
-            rSeries = chart.addLineSeries({ color: '#2196f3', lineWidth: 3 });
-            sSeries = chart.addLineSeries({ color: '#9c27b0', lineWidth: 3 });
-            sgSeries = chart.addLineSeries({ color: '#ff9800', lineWidth: 2, lineStyle: 2 });
+            chart = LightweightCharts.createChart(container, {
+                layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
+                grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
+                rightPriceScale: { borderColor: '#363a45' },
+                timeScale: { borderColor: '#363a45', timeVisible: true }
+            });
 
-            // Create indicator series
+            candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderUpColor: '#26a69a', borderDownColor: '#ef5350', wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
+
+            // Level series - like MA lines
+            bgSeries = chart.addLineSeries({ color: '#00bcd4', lineWidth: 2, lineStyle: 2, title: 'BG' });
+            rSeries = chart.addLineSeries({ color: '#2196f3', lineWidth: 3, title: 'R' });
+            sSeries = chart.addLineSeries({ color: '#9c27b0', lineWidth: 3, title: 'S' });
+            sgSeries = chart.addLineSeries({ color: '#ff9800', lineWidth: 2, lineStyle: 2, title: 'SG' });
+
+            // Indicator series
             for (const [id, ind] of Object.entries(INDICATORS)) {
                 if (ind.isBand) {
                     indicatorSeries[id + '_upper'] = chart.addLineSeries({ color: ind.color, lineWidth: 1, lineStyle: 2 });
@@ -810,45 +960,77 @@
             new ResizeObserver(() => chart.applyOptions({ width: container.clientWidth, height: container.clientHeight })).observe(container);
         }
 
-        async function fetchCandles() { 
-            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${tf}&limit=500`); 
-            const d = await res.json(); 
-            candleData = d.map(x => ({ time: x[0] / 1000, open: +x[1], high: +x[2], low: +x[3], close: +x[4], volume: +x[5] })); 
-            candleSeries.setData(candleData); 
-            chart.timeScale().fitContent(); 
-            rebuildLines(); 
-            // Fetch 24hr change from ticker
-            try { const ticker = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT').then(r=>r.json()); openPrice = +ticker.openPrice; updatePriceChange(+ticker.lastPrice); } catch(e) { openPrice = candleData[0]?.open || 0; }
-        }
-        function updatePriceChange(price) { const chg = ((price - openPrice) / openPrice * 100).toFixed(2); const ce = document.getElementById('price-change'); ce.textContent = (chg >= 0 ? '+' : '') + chg + '%'; ce.className = 'price-change ' + (chg >= 0 ? 'up' : 'down'); }
-        function connectWS() { if (ws) ws.close(); if (tf === '1d' || tf === '1w') return; ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${tf}`); ws.onmessage = e => { const { k } = JSON.parse(e.data); currentPrice = +k.c; candleSeries.update({ time: k.t / 1000, open: +k.o, high: +k.h, low: +k.l, close: currentPrice }); const lv = interpolateLevel(k.t / 1000); if (lv) { if (showLines.r) rSeries.update({ time: k.t / 1000, value: lv.r }); if (showLines.s) sSeries.update({ time: k.t / 1000, value: lv.s }); if (showLines.bg) bgSeries.update({ time: k.t / 1000, value: lv.bg }); if (showLines.sg) sgSeries.update({ time: k.t / 1000, value: lv.sg }); updateLevelDisplay(lv); } document.getElementById('price').textContent = '$' + currentPrice.toLocaleString('en-US', { maximumFractionDigits: 0 }); updatePriceChange(currentPrice); }; }
+        async function fetchCandles() {
+            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${tf}&limit=500`);
+            const d = await res.json();
+            candleData = d.map(x => ({ time: x[0] / 1000, open: +x[1], high: +x[2], low: +x[3], close: +x[4], volume: +x[5] }));
+            candleSeries.setData(candleData);
+            chart.timeScale().fitContent();
+            rebuildLevelLines();
 
-        async function switchTimeframe(ntf) { if (ntf === tf) return; document.querySelectorAll('[data-tf]').forEach(b => b.disabled = true); setStatus('Loading...', true); tf = ntf; try { await fetchCandles(); connectWS(); setStatus('Live', false); } catch { setStatus('Error', false); } document.querySelectorAll('[data-tf]').forEach(b => b.disabled = false); }
+            try { const ticker = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT').then(r => r.json()); openPrice = +ticker.openPrice; updatePriceChange(+ticker.lastPrice); } catch (e) { openPrice = candleData[0]?.open || 0; }
+        }
+
+        function updatePriceChange(price) { const chg = ((price - openPrice) / openPrice * 100).toFixed(2); const ce = document.getElementById('price-change'); ce.textContent = (chg >= 0 ? '+' : '') + chg + '%'; ce.className = 'price-change ' + (chg >= 0 ? 'up' : 'down'); }
+
+        function connectWS() {
+            if (ws) ws.close();
+            if (tf === '1d' || tf === '1w') return;
+
+            ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${tf}`);
+            ws.onmessage = e => {
+                const { k } = JSON.parse(e.data);
+                currentPrice = +k.c;
+                candleSeries.update({ time: k.t / 1000, open: +k.o, high: +k.h, low: +k.l, close: currentPrice });
+
+                // Update level lines with latest value for current candle
+                if (latestLevels) {
+                    if (showLines.r) rSeries.update({ time: k.t / 1000, value: latestLevels.r });
+                    if (showLines.s) sSeries.update({ time: k.t / 1000, value: latestLevels.s });
+                    if (showLines.bg) bgSeries.update({ time: k.t / 1000, value: latestLevels.bg });
+                    if (showLines.sg) sgSeries.update({ time: k.t / 1000, value: latestLevels.sg });
+                    updateLevelDisplay(latestLevels);
+                }
+
+                document.getElementById('price').textContent = '$' + currentPrice.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                updatePriceChange(currentPrice);
+            };
+        }
+
+        async function switchTimeframe(ntf) {
+            if (ntf === tf) return;
+            document.querySelectorAll('[data-tf]').forEach(b => b.disabled = true);
+            setStatus('Loading...', true);
+            tf = ntf;
+            try { await fetchCandles(); connectWS(); setStatus('Live', false); } catch { setStatus('Error', false); }
+            document.querySelectorAll('[data-tf]').forEach(b => b.disabled = false);
+        }
+
         function setStatus(t, l) { document.getElementById('status').textContent = t; document.getElementById('status-dot').classList.toggle('loading', l); }
 
-        // Event Listeners
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // EVENTS
+        // ═══════════════════════════════════════════════════════════════════════════════
         document.querySelectorAll('[data-tf]').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('[data-tf]').forEach(x => x.classList.remove('active')); b.classList.add('active'); switchTimeframe(b.dataset.tf); }));
         document.getElementById('btn-refresh').addEventListener('click', calculateLive);
-        document.querySelectorAll('[data-line]').forEach(t => t.addEventListener('click', function () { this.classList.toggle('on'); showLines[this.dataset.line] = this.classList.contains('on'); rebuildLines(); }));
+        document.querySelectorAll('[data-line]').forEach(t => t.addEventListener('click', function () { this.classList.toggle('on'); showLines[this.dataset.line] = this.classList.contains('on'); rebuildLevelLines(); }));
 
-        // Indicator Menu
         document.getElementById('indicators-btn').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('indicator-menu').classList.toggle('show'); });
         document.addEventListener('click', () => document.getElementById('indicator-menu').classList.remove('show'));
         document.getElementById('indicator-menu').addEventListener('click', e => e.stopPropagation());
         document.querySelectorAll('.indicator-item').forEach(item => item.addEventListener('click', () => toggleIndicator(item.dataset.ind)));
         document.getElementById('indicator-search').addEventListener('input', (e) => {
             const q = e.target.value.toLowerCase();
-            document.querySelectorAll('.indicator-item').forEach(item => {
-                const name = item.querySelector('.name').textContent.toLowerCase();
-                item.style.display = name.includes(q) ? 'flex' : 'none';
-            });
+            document.querySelectorAll('.indicator-item').forEach(item => { item.style.display = item.querySelector('.name').textContent.toLowerCase().includes(q) ? 'flex' : 'none'; });
         });
 
         setInterval(() => { if (nextUpdate) { const s = Math.max(0, Math.floor((nextUpdate - Date.now()) / 1000)); document.getElementById('stat-next').textContent = `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`; } }, 1000);
 
-        // Init
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // INIT
+        // ═══════════════════════════════════════════════════════════════════════════════
         initChart();
-        loadHistoricalLevels().then(() => { fetchCandles().then(() => { connectWS(); calculateLive(); }); });
+        fetchCandles().then(() => { connectWS(); calculateLive(); });
         setInterval(calculateLive, UPDATE_INTERVAL);
     </script>
 </body>
