@@ -748,7 +748,7 @@
         function findLevels(longs, shorts) {
             if (!longs.length || !shorts.length) return null;
 
-            // Find where COMBINED PnL (buyer + seller) crosses zero
+            // Find where BUYER PnL = SELLER PnL (buyer - seller crosses zero)
             const allStrikes = [...longs, ...shorts].map(p => p.strike);
             const minStrike = Math.min(...allStrikes);
             const maxStrike = Math.max(...allStrikes);
@@ -756,28 +756,29 @@
             const priceMax = Math.ceil(maxStrike * 1.10);
 
             const crossings = [];
-            let prevPnl = null;
+            let prevDiff = null;
 
             for (let price = priceMin; price < priceMax; price++) {
                 const buyerPnl = calcPnL(longs, price, true);
                 const sellerPnl = calcPnL(shorts, price, false);
-                const combinedPnl = buyerPnl + sellerPnl;
+                const diff = buyerPnl - sellerPnl;  // When this crosses zero, buyer = seller
 
-                if (prevPnl !== null && prevPnl * combinedPnl < 0) {
+                if (prevDiff !== null && prevDiff * diff < 0) {
                     // Interpolate
-                    const t = Math.abs(prevPnl) / (Math.abs(prevPnl) + Math.abs(combinedPnl));
+                    const t = Math.abs(prevDiff) / (Math.abs(prevDiff) + Math.abs(diff));
                     crossings.push((price - 1) + t);
                 }
-                prevPnl = combinedPnl;
+                prevDiff = diff;
             }
 
-            // R = highest crossing, S = lowest crossing
+            // S = LEFT crossing (first), R = RIGHT crossing (last)
             let r, s;
             if (crossings.length >= 2) {
-                s = Math.round(Math.min(...crossings));
-                r = Math.round(Math.max(...crossings));
+                s = Math.round(crossings[0]);  // Left crossing = Support
+                r = Math.round(crossings[crossings.length - 1]);  // Right crossing = Resistance
             } else if (crossings.length === 1) {
                 s = r = Math.round(crossings[0]);
+
             } else {
                 s = Math.round(minStrike);
                 r = Math.round(maxStrike);

@@ -156,16 +156,15 @@ def calculate_pnl_at_expiry(positions, underlying_price, is_buyer=True):
 def find_levels(longs, shorts):
     """
     Find R, S, BG, SG using Thales method:
-    - R = Where combined (Buyer + Seller) PnL crosses zero (upper crossing)
-    - S = Where combined (Buyer + Seller) PnL crosses zero (lower crossing)
+    - R = Where BUYER PnL curve crosses SELLER PnL curve (RIGHT crossing)
+    - S = Where BUYER PnL curve crosses SELLER PnL curve (LEFT crossing)
     - BG = Weighted average of BUYER (long) strikes by size
     - SG = Weighted average of SELLER (short) strikes by size
     """
     if not longs or not shorts:
         return 85000, 100000, 90000, 87000
     
-    # Find where COMBINED PnL (buyer + seller) crosses zero
-    # This represents equilibrium points
+    # Find where BUYER PnL = SELLER PnL (buyer - seller crosses zero)
     all_strikes = [p['strike'] for p in longs + shorts]
     min_strike = min(all_strikes)
     max_strike = max(all_strikes)
@@ -174,25 +173,26 @@ def find_levels(longs, shorts):
     price_max = int(max_strike * 1.10)
     
     crossings = []
-    prev_pnl = None
+    prev_diff = None
     
     for price in range(price_min, price_max):
         buyer_pnl = calculate_pnl_at_expiry(longs, price, is_buyer=True)
         seller_pnl = calculate_pnl_at_expiry(shorts, price, is_buyer=False)
-        combined_pnl = buyer_pnl + seller_pnl
+        diff = buyer_pnl - seller_pnl  # When this crosses zero, buyer = seller
         
-        if prev_pnl is not None and prev_pnl * combined_pnl < 0:
+        if prev_diff is not None and prev_diff * diff < 0:
             # Interpolate for precision
-            t = abs(prev_pnl) / (abs(prev_pnl) + abs(combined_pnl))
+            t = abs(prev_diff) / (abs(prev_diff) + abs(diff))
             exact_price = (price - 1) + t
             crossings.append(exact_price)
         
-        prev_pnl = combined_pnl
+        prev_diff = diff
     
-    # R = highest crossing, S = lowest crossing
+    # S = LEFT crossing (first), R = RIGHT crossing (last)
     if len(crossings) >= 2:
-        s = int(min(crossings))
-        r = int(max(crossings))
+        s = int(crossings[0])  # Left crossing = Support
+        r = int(crossings[-1])  # Right crossing = Resistance
+
     elif len(crossings) == 1:
         s = r = int(crossings[0])
     else:
