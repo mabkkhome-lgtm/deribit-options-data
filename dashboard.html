@@ -41,6 +41,19 @@
             font-weight: 700;
         }
 
+        .price-change {
+            font-size: 12px;
+            margin-left: 8px;
+        }
+
+        .price-change.up {
+            color: #26a69a;
+        }
+
+        .price-change.down {
+            color: #ef5350;
+        }
+
         .status {
             display: flex;
             align-items: center;
@@ -92,6 +105,7 @@
             gap: 4px;
             border-bottom: 1px solid #363a45;
             flex-wrap: wrap;
+            align-items: center;
         }
 
         .toolbar button {
@@ -121,8 +135,21 @@
 
         .toolbar .sep {
             width: 1px;
+            height: 20px;
             background: #363a45;
             margin: 0 4px;
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .toolbar-label {
+            font-size: 10px;
+            color: #787b86;
+            margin-right: 4px;
         }
 
         #chart {
@@ -130,7 +157,7 @@
         }
 
         .sidebar {
-            width: 300px;
+            width: 320px;
             background: #1e222d;
             border-left: 1px solid #363a45;
             overflow-y: auto;
@@ -148,6 +175,17 @@
             text-transform: uppercase;
             color: #787b86;
             margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-badge {
+            background: #2962ff;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 9px;
         }
 
         .level {
@@ -179,6 +217,10 @@
 
         .level-value.sg {
             color: #ff9800;
+        }
+
+        .level-value.vwap {
+            color: #ffeb3b;
         }
 
         .level-value.green {
@@ -219,7 +261,6 @@
 
         .btn-refresh {
             background: #2962ff !important;
-            margin-left: auto;
         }
 
         .toggle-row {
@@ -275,31 +316,102 @@
             border-radius: 2px;
             transform: translateX(-50%);
         }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+        }
+
+        .option-card {
+            background: #2a2e39;
+            border-radius: 4px;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .option-card .value {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .option-card .label {
+            font-size: 9px;
+            color: #787b86;
+            text-transform: uppercase;
+        }
+
+        .bias-bar {
+            height: 6px;
+            background: #363a45;
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .bias-long {
+            background: #4caf50;
+            height: 100%;
+        }
+
+        .bias-short {
+            background: #f44336;
+            height: 100%;
+            transition: width 0.3s;
+        }
+
+        .strike-list {
+            max-height: 120px;
+            overflow-y: auto;
+            font-size: 10px;
+        }
+
+        .strike-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 4px;
+            border-bottom: 1px solid #1e222d;
+        }
+
+        .strike-item:hover {
+            background: #363a45;
+        }
     </style>
 </head>
 
 <body>
     <header class="header">
         <div class="logo">📊 Options Levels Tracker</div>
-        <div><span class="price" id="price">$---,---</span></div>
+        <div>
+            <span class="price" id="price">$---,---</span>
+            <span class="price-change" id="price-change">--</span>
+        </div>
         <div class="status"><span class="status-dot" id="status-dot"></span><span id="status">Loading...</span></div>
     </header>
 
     <div class="main">
         <div class="chart-area">
             <div class="toolbar">
-                <button data-tf="1m">1m</button>
-                <button data-tf="3m">3m</button>
-                <button data-tf="5m">5m</button>
-                <button data-tf="15m" class="active">15m</button>
-                <button data-tf="30m">30m</button>
+                <div class="toolbar-group">
+                    <span class="toolbar-label">TF:</span>
+                    <button data-tf="1m">1m</button>
+                    <button data-tf="5m">5m</button>
+                    <button data-tf="15m" class="active">15m</button>
+                    <button data-tf="1h">1H</button>
+                    <button data-tf="4h">4H</button>
+                    <button data-tf="1d">1D</button>
+                </div>
                 <div class="sep"></div>
-                <button data-tf="1h">1H</button>
-                <button data-tf="2h">2H</button>
-                <button data-tf="4h">4H</button>
+                <div class="toolbar-group">
+                    <span class="toolbar-label">Indicators:</span>
+                    <button id="btn-vwap" class="active">VWAP</button>
+                    <button id="btn-ema20">EMA 20</button>
+                    <button id="btn-ema50">EMA 50</button>
+                    <button id="btn-bb">BB</button>
+                </div>
                 <div class="sep"></div>
-                <button data-tf="1d">1D</button>
-                <button data-tf="1w">1W</button>
                 <button class="btn-refresh" id="btn-refresh">🔄 Update</button>
             </div>
             <div id="chart"></div>
@@ -307,41 +419,74 @@
 
         <aside class="sidebar">
             <div class="panel">
-                <div class="panel-title">📊 Live Levels (4 Bands)</div>
-                <div class="level"><span>🔷 Buyer Gamma (Upper)</span><span class="level-value bg"
-                        id="bg-val">---</span></div>
+                <div class="panel-title">📊 Options Levels <span class="panel-badge">LIVE</span></div>
+                <div class="level"><span>🔷 Buyer Gamma</span><span class="level-value bg" id="bg-val">---</span></div>
                 <div class="level"><span>🔵 Resistance</span><span class="level-value r" id="r-val">---</span></div>
+                <div class="level"><span>🟡 VWAP</span><span class="level-value vwap" id="vwap-val">---</span></div>
                 <div class="level"><span>🟣 Support</span><span class="level-value s" id="s-val">---</span></div>
-                <div class="level"><span>🟠 Seller Gamma (Lower)</span><span class="level-value sg"
-                        id="sg-val">---</span></div>
+                <div class="level"><span>🟠 Seller Gamma</span><span class="level-value sg" id="sg-val">---</span></div>
                 <div class="position-bar">
                     <div class="position-marker" id="pos-marker" style="left:50%"></div>
                 </div>
-                <div class="level"><span>📍 Position</span><span class="level-value" id="pos-val">--% in range</span>
-                </div>
+                <div class="level"><span>📍 Price Position</span><span class="level-value" id="pos-val">--%</span></div>
             </div>
 
             <div class="panel">
-                <div class="panel-title">📊 Thales Data</div>
-                <div class="stats-row"><span class="stats-label">Long Positions</span><span class="stats-value green"
-                        id="stat-longs">--</span></div>
-                <div class="stats-row"><span class="stats-label">Short Positions</span><span class="stats-value red"
-                        id="stat-shorts">--</span></div>
+                <div class="panel-title">📈 Options Flow</div>
+                <div class="options-grid">
+                    <div class="option-card">
+                        <div class="value green" id="stat-longs">--</div>
+                        <div class="label">Long Positions</div>
+                    </div>
+                    <div class="option-card">
+                        <div class="value red" id="stat-shorts">--</div>
+                        <div class="label">Short Positions</div>
+                    </div>
+                    <div class="option-card">
+                        <div class="value" id="stat-calls">--</div>
+                        <div class="label">Calls</div>
+                    </div>
+                    <div class="option-card">
+                        <div class="value" id="stat-puts">--</div>
+                        <div class="label">Puts</div>
+                    </div>
+                </div>
+                <div class="bias-bar">
+                    <div class="bias-long" id="bias-long" style="width:50%"></div>
+                    <div class="bias-short" id="bias-short" style="width:50%"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:9px;color:#787b86;margin-top:2px;">
+                    <span>Bulls</span><span id="bias-pct">50%</span><span>Bears</span></div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">🎯 Top Strikes</div>
+                <div class="strike-list" id="strike-list">Loading...</div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">📊 Stats</div>
+                <div class="stats-row"><span class="stats-label">Total Premium</span><span class="stats-value"
+                        id="stat-premium">$--</span></div>
+                <div class="stats-row"><span class="stats-label">Avg Strike</span><span id="stat-avgstrike">$--</span>
+                </div>
                 <div class="stats-row"><span class="stats-label">Historical Days</span><span id="stat-days">--</span>
                 </div>
-                <div class="stats-row"><span class="stats-label">Last Calculation</span><span
-                        id="stat-time">--:--</span></div>
+                <div class="stats-row"><span class="stats-label">Last Calc</span><span id="stat-time">--:--</span></div>
                 <div class="stats-row"><span class="stats-label">Next Update</span><span class="stats-value cyan"
                         id="stat-next">--:--</span></div>
             </div>
 
             <div class="panel">
-                <div class="panel-title">⚙️ Display Options</div>
+                <div class="panel-title">⚙️ Display</div>
                 <div class="toggle-row"><span>🔷 Buyer Gamma</span>
                     <div class="toggle on" data-line="bg"></div>
                 </div>
                 <div class="toggle-row"><span>🔵 Resistance</span>
                     <div class="toggle on" data-line="r"></div>
+                </div>
+                <div class="toggle-row"><span>🟡 VWAP</span>
+                    <div class="toggle on" data-line="vwap"></div>
                 </div>
                 <div class="toggle-row"><span>🟣 Support</span>
                     <div class="toggle on" data-line="s"></div>
@@ -355,51 +500,107 @@
 
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <script>
-        // ═══════════════════════════════════════════════════════════════════════════════
         // CONFIG
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
         const CSV_URL = 'https://raw.githubusercontent.com/mabkkhome-lgtm/deribit-options-data/main/data/btc_levels.csv';
         const THALES_API = 'https://oss.thales-mfi.com/api/MarketScreener/FetchOptions';
         const PROXY = 'https://corsproxy.io/?';
         const UPDATE_INTERVAL = 60000;
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
+
         // STATE
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
-        let chart, candleSeries, rSeries, sSeries, bgSeries, sgSeries;
+        let chart, candleSeries, rSeries, sSeries, bgSeries, sgSeries, vwapSeries, ema20Series, ema50Series;
+        let bbUpperSeries, bbLowerSeries;
         let tf = '15m';
         let ws = null;
         let nextUpdate = null;
-        let historicalLevels = []; // {timestamp, r, s, bg, sg}
+        let historicalLevels = [];
         let candleData = [];
-        let showLines = { r: true, s: true, bg: true, sg: true };
+        let showLines = { r: true, s: true, bg: true, sg: true, vwap: true };
+        let showIndicators = { vwap: true, ema20: false, ema50: false, bb: false };
         let currentPrice = 0;
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // THALES LIVE CALCULATION
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
+        let openPrice = 0;
+        let thalesData = { longs: [], shorts: [], calls: 0, puts: 0, totalPremium: 0, topStrikes: [] };
+
+        // VWAP Calculation
+        function calculateVWAP(candles) {
+            let cumVolPrice = 0;
+            let cumVol = 0;
+            const vwapData = [];
+
+            for (const c of candles) {
+                const typicalPrice = (c.high + c.low + c.close) / 3;
+                const volume = c.volume || 1;
+                cumVolPrice += typicalPrice * volume;
+                cumVol += volume;
+                vwapData.push({ time: c.time, value: cumVolPrice / cumVol });
+            }
+            return vwapData;
+        }
+
+        // EMA Calculation
+        function calculateEMA(candles, period) {
+            const k = 2 / (period + 1);
+            const emaData = [];
+            let ema = candles[0]?.close || 0;
+
+            for (const c of candles) {
+                ema = c.close * k + ema * (1 - k);
+                emaData.push({ time: c.time, value: ema });
+            }
+            return emaData;
+        }
+
+        // Bollinger Bands
+        function calculateBB(candles, period = 20, mult = 2) {
+            const upper = [], lower = [];
+            for (let i = 0; i < candles.length; i++) {
+                if (i < period - 1) continue;
+                const slice = candles.slice(i - period + 1, i + 1);
+                const closes = slice.map(c => c.close);
+                const avg = closes.reduce((a, b) => a + b, 0) / period;
+                const std = Math.sqrt(closes.reduce((a, b) => a + (b - avg) ** 2, 0) / period);
+                upper.push({ time: candles[i].time, value: avg + mult * std });
+                lower.push({ time: candles[i].time, value: avg - mult * std });
+            }
+            return { upper, lower };
+        }
+
+        // Thales parsing
         function getTomorrowExpiry() {
             const t = new Date(); t.setDate(t.getDate() + 1); t.setUTCHours(0, 0, 0, 0);
             return Math.floor((t - new Date(0)) / 864e5);
         }
-        
+
         function parseThalesCSV(csv, expiry) {
             const longs = [], shorts = [];
+            let calls = 0, puts = 0, totalPremium = 0;
+            const strikeMap = {};
+
             for (const line of csv.trim().split('\n')) {
                 const p = line.split(',');
                 if (p.length < 7) continue;
                 try {
                     if (parseInt(p[1]) !== expiry) continue;
-                    const pos = { type: p[0]==='0'?'call':'put', strike: +p[2], size: +p[5], premium: +p[6] };
-                    if (p[4]==='0') longs.push(pos); else shorts.push(pos);
-                } catch {}
+                    const type = p[0] === '0' ? 'call' : 'put';
+                    const strike = +p[2];
+                    const size = +p[5];
+                    const premium = +p[6];
+                    const pos = { type, strike, size, premium };
+
+                    if (p[4] === '0') longs.push(pos); else shorts.push(pos);
+                    if (type === 'call') calls++; else puts++;
+                    totalPremium += premium * size;
+                    strikeMap[strike] = (strikeMap[strike] || 0) + size;
+                } catch { }
             }
-            return { longs, shorts };
+
+            const topStrikes = Object.entries(strikeMap)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10)
+                .map(([strike, size]) => ({ strike: +strike, size }));
+
+            return { longs, shorts, calls, puts, totalPremium, topStrikes };
         }
-        
+
         function calcPnL(positions, price, isBuyer) {
             let total = 0;
             for (const p of positions) {
@@ -408,51 +609,37 @@
             }
             return total;
         }
-        
+
         function findLevels(longs, shorts) {
             const strikes = [...longs, ...shorts].map(p => p.strike);
             if (!strikes.length) return null;
-            
+
             const min = Math.floor(Math.min(...strikes) * 0.85);
             const max = Math.ceil(Math.max(...strikes) * 1.15);
             const crosses = [];
             let prevDiff = null;
-            
+
             for (let price = min; price < max; price += 50) {
                 const buyerPnL = calcPnL(longs, price, true);
                 const sellerPnL = calcPnL(shorts, price, false);
                 const diff = buyerPnL - sellerPnL;
-                
                 if (prevDiff !== null && prevDiff * diff < 0) crosses.push(price);
                 prevDiff = diff;
             }
-            
+
             let r, s;
-            if (crosses.length >= 2) { 
-                s = crosses[0]; 
-                r = crosses[crosses.length - 1]; 
-            } else if (crosses.length === 1) { 
-                s = crosses[0]; 
-                r = crosses[0]; 
-            } else { 
-                const avg = strikes.reduce((a, b) => a + b, 0) / strikes.length;
-                s = Math.round(avg * 0.97); 
-                r = Math.round(avg * 1.03);
-            }
-            
-            // Gamma point is BETWEEN R and S (where gamma exposure is highest)
-            // This is the midpoint of the R-S range
+            if (crosses.length >= 2) { s = crosses[0]; r = crosses[crosses.length - 1]; }
+            else if (crosses.length === 1) { s = crosses[0]; r = crosses[0]; }
+            else { const avg = strikes.reduce((a, b) => a + b, 0) / strikes.length; s = Math.round(avg * 0.97); r = Math.round(avg * 1.03); }
+
             const gammaPoint = (r + s) / 2;
-            const halfWidth = (r - s) * 0.15; // 15% of R-S range
-            
-            // BG slightly above midpoint, SG slightly below - creates a band in the middle
+            const halfWidth = (r - s) * 0.15;
             const bg = Math.round(gammaPoint + halfWidth);
             const sg = Math.round(gammaPoint - halfWidth);
 
             return { r, s, bg, sg };
         }
 
-        
         async function calculateLive() {
             setStatus('Calculating...', true);
             try {
@@ -461,263 +648,186 @@
                 const url = `${PROXY}${THALES_API}?source=1&fromDate=${start.getTime()}&toDate=${now.getTime()}`;
                 const res = await fetch(url);
                 const csv = await res.text();
-                
-                const { longs, shorts } = parseThalesCSV(csv, getTomorrowExpiry());
-                document.getElementById('stat-longs').textContent = longs.length;
-                document.getElementById('stat-shorts').textContent = shorts.length;
-                
-                if (longs.length && shorts.length) {
-                    const levels = findLevels(longs, shorts);
+
+                thalesData = parseThalesCSV(csv, getTomorrowExpiry());
+                updateThalesUI();
+
+                if (thalesData.longs.length && thalesData.shorts.length) {
+                    const levels = findLevels(thalesData.longs, thalesData.shorts);
                     if (levels) {
-                        const today = Math.floor(new Date().setUTCHours(0,0,0,0) / 1000);
+                        const today = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000);
                         const existing = historicalLevels.find(h => h.timestamp >= today);
-                        if (existing) { 
-                            existing.r = levels.r; existing.s = levels.s;
-                            existing.bg = levels.bg; existing.sg = levels.sg;
-                        } else { 
-                            historicalLevels.push({ timestamp: today, ...levels }); 
-                            historicalLevels.sort((a, b) => a.timestamp - b.timestamp); 
-                        }
-                        
+                        if (existing) { Object.assign(existing, levels); }
+                        else { historicalLevels.push({ timestamp: today, ...levels }); historicalLevels.sort((a, b) => a.timestamp - b.timestamp); }
+
                         updateLevelDisplay(levels);
                         document.getElementById('stat-time').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                        
                         rebuildLines();
-                        console.log(`✅ ${now.toLocaleTimeString()} BG=${levels.bg} R=${levels.r} S=${levels.s} SG=${levels.sg}`);
                     }
                 }
                 setStatus('Live', false);
-            } catch (e) {
-                console.error('Calc error:', e);
-                setStatus('Error', false);
-            }
+            } catch (e) { console.error(e); setStatus('Error', false); }
             nextUpdate = Date.now() + UPDATE_INTERVAL;
         }
-        
+
+        function updateThalesUI() {
+            document.getElementById('stat-longs').textContent = thalesData.longs.length;
+            document.getElementById('stat-shorts').textContent = thalesData.shorts.length;
+            document.getElementById('stat-calls').textContent = thalesData.calls;
+            document.getElementById('stat-puts').textContent = thalesData.puts;
+            document.getElementById('stat-premium').textContent = '$' + (thalesData.totalPremium / 1000).toFixed(1) + 'K';
+
+            const allStrikes = [...thalesData.longs, ...thalesData.shorts].map(p => p.strike);
+            const avgStrike = allStrikes.length ? (allStrikes.reduce((a, b) => a + b, 0) / allStrikes.length) : 0;
+            document.getElementById('stat-avgstrike').textContent = '$' + avgStrike.toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+            const longPct = thalesData.longs.length / (thalesData.longs.length + thalesData.shorts.length || 1) * 100;
+            document.getElementById('bias-long').style.width = longPct + '%';
+            document.getElementById('bias-short').style.width = (100 - longPct) + '%';
+            document.getElementById('bias-pct').textContent = Math.round(longPct) + '% Long';
+
+            const strikeList = document.getElementById('strike-list');
+            strikeList.innerHTML = thalesData.topStrikes.map(s =>
+                `<div class="strike-item"><span>$${s.strike.toLocaleString()}</span><span>${s.size.toFixed(2)} BTC</span></div>`
+            ).join('');
+        }
+
         function updateLevelDisplay(levels) {
             document.getElementById('r-val').textContent = '$' + levels.r.toLocaleString();
             document.getElementById('s-val').textContent = '$' + levels.s.toLocaleString();
             document.getElementById('bg-val').textContent = '$' + levels.bg.toLocaleString();
             document.getElementById('sg-val').textContent = '$' + levels.sg.toLocaleString();
-            
-            if (currentPrice > 0 && levels.bg && levels.sg) {
-                // Position within full range (SG to BG)
+
+            if (currentPrice > 0) {
                 const fullRange = levels.bg - levels.sg;
                 const pos = ((currentPrice - levels.sg) / fullRange * 100);
-                const clamped = Math.max(0, Math.min(100, pos));
-                document.getElementById('pos-marker').style.left = clamped + '%';
-                document.getElementById('pos-val').textContent = pos.toFixed(1) + '% in full range';
+                document.getElementById('pos-marker').style.left = Math.max(0, Math.min(100, pos)) + '%';
+                document.getElementById('pos-val').textContent = pos.toFixed(1) + '%';
             }
         }
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // HISTORICAL DATA - Now calculates proper BG/SG from R/S
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
-        function parseDate(dateStr) {
-            const [d, m, y] = dateStr.split('/').map(Number);
-            return new Date(y, m - 1, d).getTime() / 1000;
-        }
-        
+
+        function parseDate(dateStr) { const [d, m, y] = dateStr.split('/').map(Number); return new Date(y, m - 1, d).getTime() / 1000; }
+
         async function loadHistoricalLevels() {
             try {
                 const res = await fetch(CSV_URL + '?t=' + Date.now());
                 const text = await res.text();
                 const lines = text.trim().split('\n');
-                
                 historicalLevels = [];
                 for (let i = 1; i < lines.length; i++) {
                     const parts = lines[i].split(',');
                     if (parts.length >= 3) {
                         const timestamp = parseDate(parts[0].trim());
-                        const r = parseFloat(parts[1]);
-                        const s = parseFloat(parts[2]);
-                        
-                        // Calculate BG and SG based on R/S range
-                        // BG is above R, SG is below S
-                        const range = r - s;
-                        const bg = r + range * 0.3; // 30% above resistance
-                        const sg = s - range * 0.3; // 30% below support
-                        
-                        if (!isNaN(timestamp) && !isNaN(r) && !isNaN(s)) {
-                            historicalLevels.push({ timestamp, r, s, bg, sg });
-                        }
+                        const r = parseFloat(parts[1]), s = parseFloat(parts[2]);
+                        const range = r - s, bg = r + range * 0.3, sg = s - range * 0.3;
+                        if (!isNaN(timestamp) && !isNaN(r) && !isNaN(s)) historicalLevels.push({ timestamp, r, s, bg, sg });
                     }
                 }
-                
                 historicalLevels.sort((a, b) => a.timestamp - b.timestamp);
                 document.getElementById('stat-days').textContent = historicalLevels.length;
                 rebuildLines();
-            } catch (e) {
-                console.error('Error loading history:', e);
-            }
+            } catch (e) { console.error(e); }
         }
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // INTERPOLATION & LINES - ALL 4 LINES CURVE
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
+
         function interpolateLevel(timestamp) {
-            if (historicalLevels.length === 0) return null;
-            
+            if (!historicalLevels.length) return null;
             let before = null, after = null;
-            for (let i = 0; i < historicalLevels.length; i++) {
-                if (historicalLevels[i].timestamp <= timestamp) before = historicalLevels[i];
-                if (historicalLevels[i].timestamp > timestamp && !after) after = historicalLevels[i];
-            }
-            
-            if (!after) return before ? { r: before.r, s: before.s, bg: before.bg, sg: before.sg } : null;
-            if (!before) return { r: after.r, s: after.s, bg: after.bg, sg: after.sg };
-            
+            for (const h of historicalLevels) { if (h.timestamp <= timestamp) before = h; if (h.timestamp > timestamp && !after) after = h; }
+            if (!after) return before;
+            if (!before) return after;
             const ratio = (timestamp - before.timestamp) / (after.timestamp - before.timestamp);
-            return {
-                r: before.r + (after.r - before.r) * ratio,
-                s: before.s + (after.s - before.s) * ratio,
-                bg: before.bg + (after.bg - before.bg) * ratio,
-                sg: before.sg + (after.sg - before.sg) * ratio,
-            };
+            return { r: before.r + (after.r - before.r) * ratio, s: before.s + (after.s - before.s) * ratio, bg: before.bg + (after.bg - before.bg) * ratio, sg: before.sg + (after.sg - before.sg) * ratio };
         }
-        
+
         function rebuildLines() {
-            if (historicalLevels.length === 0 || candleData.length === 0) return;
-            
+            if (!historicalLevels.length || !candleData.length) return;
             const rData = [], sData = [], bgData = [], sgData = [];
-            for (const candle of candleData) {
-                const levels = interpolateLevel(candle.time);
-                if (levels) {
-                    rData.push({ time: candle.time, value: levels.r });
-                    sData.push({ time: candle.time, value: levels.s });
-                    bgData.push({ time: candle.time, value: levels.bg });
-                    sgData.push({ time: candle.time, value: levels.sg });
-                }
-            }
-            
-            rSeries.setData(showLines.r ? rData : []);
-            sSeries.setData(showLines.s ? sData : []);
-            bgSeries.setData(showLines.bg ? bgData : []);
-            sgSeries.setData(showLines.sg ? sgData : []);
+            for (const c of candleData) { const lv = interpolateLevel(c.time); if (lv) { rData.push({ time: c.time, value: lv.r }); sData.push({ time: c.time, value: lv.s }); bgData.push({ time: c.time, value: lv.bg }); sgData.push({ time: c.time, value: lv.sg }); } }
+            if (showLines.r) rSeries.setData(rData); else rSeries.setData([]);
+            if (showLines.s) sSeries.setData(sData); else sSeries.setData([]);
+            if (showLines.bg) bgSeries.setData(bgData); else bgSeries.setData([]);
+            if (showLines.sg) sgSeries.setData(sgData); else sgSeries.setData([]);
+            rebuildIndicators();
         }
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // CHART
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
+
+        function rebuildIndicators() {
+            if (!candleData.length) return;
+            if (showIndicators.vwap && showLines.vwap) { vwapSeries.setData(calculateVWAP(candleData)); const last = calculateVWAP(candleData).pop(); if (last) document.getElementById('vwap-val').textContent = '$' + last.value.toLocaleString(undefined, { maximumFractionDigits: 0 }); }
+            else vwapSeries.setData([]);
+            if (showIndicators.ema20) ema20Series.setData(calculateEMA(candleData, 20)); else ema20Series.setData([]);
+            if (showIndicators.ema50) ema50Series.setData(calculateEMA(candleData, 50)); else ema50Series.setData([]);
+            if (showIndicators.bb) { const bb = calculateBB(candleData); bbUpperSeries.setData(bb.upper); bbLowerSeries.setData(bb.lower); } else { bbUpperSeries.setData([]); bbLowerSeries.setData([]); }
+        }
+
         function initChart() {
             const container = document.getElementById('chart');
-            chart = LightweightCharts.createChart(container, {
-                layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' },
-                grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
-                rightPriceScale: { borderColor: '#363a45' },
-                timeScale: { borderColor: '#363a45', timeVisible: true },
-            });
-            
-            candleSeries = chart.addCandlestickSeries({
-                upColor: '#26a69a', downColor: '#ef5350',
-                borderUpColor: '#26a69a', borderDownColor: '#ef5350',
-                wickUpColor: '#26a69a', wickDownColor: '#ef5350',
-            });
-            
-            // ALL 4 lines curve - BG at top, then R, S, SG at bottom
-            bgSeries = chart.addLineSeries({ color: '#00bcd4', lineWidth: 2, title: 'BG', priceLineVisible: true, lastValueVisible: true, lineStyle: 2 });
-            rSeries = chart.addLineSeries({ color: '#2196f3', lineWidth: 3, title: 'R', priceLineVisible: true, lastValueVisible: true });
-            sSeries = chart.addLineSeries({ color: '#9c27b0', lineWidth: 3, title: 'S', priceLineVisible: true, lastValueVisible: true });
-            sgSeries = chart.addLineSeries({ color: '#ff9800', lineWidth: 2, title: 'SG', priceLineVisible: true, lastValueVisible: true, lineStyle: 2 });
-            
+            chart = LightweightCharts.createChart(container, { layout: { background: { type: 'solid', color: '#131722' }, textColor: '#d1d4dc' }, grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } }, rightPriceScale: { borderColor: '#363a45' }, timeScale: { borderColor: '#363a45', timeVisible: true }, });
+            candleSeries = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderUpColor: '#26a69a', borderDownColor: '#ef5350', wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
+            bgSeries = chart.addLineSeries({ color: '#00bcd4', lineWidth: 2, title: 'BG', lineStyle: 2 });
+            rSeries = chart.addLineSeries({ color: '#2196f3', lineWidth: 3, title: 'R' });
+            vwapSeries = chart.addLineSeries({ color: '#ffeb3b', lineWidth: 2, title: 'VWAP' });
+            sSeries = chart.addLineSeries({ color: '#9c27b0', lineWidth: 3, title: 'S' });
+            sgSeries = chart.addLineSeries({ color: '#ff9800', lineWidth: 2, title: 'SG', lineStyle: 2 });
+            ema20Series = chart.addLineSeries({ color: '#26a69a', lineWidth: 1, title: 'EMA20' });
+            ema50Series = chart.addLineSeries({ color: '#ef5350', lineWidth: 1, title: 'EMA50' });
+            bbUpperSeries = chart.addLineSeries({ color: '#787b86', lineWidth: 1, lineStyle: 2 });
+            bbLowerSeries = chart.addLineSeries({ color: '#787b86', lineWidth: 1, lineStyle: 2 });
             new ResizeObserver(() => chart.applyOptions({ width: container.clientWidth, height: container.clientHeight })).observe(container);
         }
-        
+
         async function fetchCandles() {
             const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${tf}&limit=500`);
             const data = await res.json();
-            
-            candleData = data.map(d => ({
-                time: d[0] / 1000,
-                open: +d[1], high: +d[2], low: +d[3], close: +d[4],
-            }));
-            
+            candleData = data.map(d => ({ time: d[0] / 1000, open: +d[1], high: +d[2], low: +d[3], close: +d[4], volume: +d[5] }));
+            openPrice = candleData[0]?.open || 0;
             candleSeries.setData(candleData);
             chart.timeScale().fitContent();
             rebuildLines();
         }
-        
+
         function connectWS() {
             if (ws) ws.close();
-            if (tf === '1d' || tf === '1w' || tf === '1M') return;
-            
+            if (tf === '1d' || tf === '1w') return;
             ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${tf}`);
             ws.onmessage = (e) => {
                 const { k } = JSON.parse(e.data);
-                const candleTime = k.t / 1000;
                 currentPrice = +k.c;
-                
-                candleSeries.update({ time: candleTime, open: +k.o, high: +k.h, low: +k.l, close: currentPrice });
-                
-                const levels = interpolateLevel(candleTime);
-                if (levels) {
-                    if (showLines.bg) bgSeries.update({ time: candleTime, value: levels.bg });
-                    if (showLines.r) rSeries.update({ time: candleTime, value: levels.r });
-                    if (showLines.s) sSeries.update({ time: candleTime, value: levels.s });
-                    if (showLines.sg) sgSeries.update({ time: candleTime, value: levels.sg });
-                    updateLevelDisplay(levels);
-                }
-                
+                candleSeries.update({ time: k.t / 1000, open: +k.o, high: +k.h, low: +k.l, close: currentPrice });
+                const lv = interpolateLevel(k.t / 1000);
+                if (lv) { if (showLines.r) rSeries.update({ time: k.t / 1000, value: lv.r }); if (showLines.s) sSeries.update({ time: k.t / 1000, value: lv.s }); if (showLines.bg) bgSeries.update({ time: k.t / 1000, value: lv.bg }); if (showLines.sg) sgSeries.update({ time: k.t / 1000, value: lv.sg }); updateLevelDisplay(lv); }
                 document.getElementById('price').textContent = '$' + currentPrice.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                const change = ((currentPrice - openPrice) / openPrice * 100).toFixed(2);
+                const changeEl = document.getElementById('price-change');
+                changeEl.textContent = (change >= 0 ? '+' : '') + change + '%';
+                changeEl.className = 'price-change ' + (change >= 0 ? 'up' : 'down');
             };
         }
-        
+
         async function switchTimeframe(newTf) {
             if (newTf === tf) return;
             document.querySelectorAll('[data-tf]').forEach(b => b.disabled = true);
             setStatus('Loading...', true);
             tf = newTf;
-            try { await fetchCandles(); connectWS(); setStatus('Live', false); }
-            catch (e) { setStatus('Error', false); }
+            try { await fetchCandles(); connectWS(); setStatus('Live', false); } catch (e) { setStatus('Error', false); }
             document.querySelectorAll('[data-tf]').forEach(b => b.disabled = false);
         }
-        
-        function setStatus(text, loading) {
-            document.getElementById('status').textContent = text;
-            document.getElementById('status-dot').classList.toggle('loading', loading);
-        }
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // EVENTS
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
-        document.querySelectorAll('[data-tf]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('[data-tf]').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                switchTimeframe(btn.dataset.tf);
-            });
-        });
-        
+
+        function setStatus(text, loading) { document.getElementById('status').textContent = text; document.getElementById('status-dot').classList.toggle('loading', loading); }
+
+        // Events
+        document.querySelectorAll('[data-tf]').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('[data-tf]').forEach(b => b.classList.remove('active')); btn.classList.add('active'); switchTimeframe(btn.dataset.tf); }));
         document.getElementById('btn-refresh').addEventListener('click', calculateLive);
-        
-        document.querySelectorAll('[data-line]').forEach(toggle => {
-            toggle.addEventListener('click', function() {
-                this.classList.toggle('on');
-                showLines[this.dataset.line] = this.classList.contains('on');
-                rebuildLines();
-            });
+        document.querySelectorAll('[data-line]').forEach(t => t.addEventListener('click', function () { this.classList.toggle('on'); showLines[this.dataset.line] = this.classList.contains('on'); rebuildLines(); }));
+
+        ['vwap', 'ema20', 'ema50', 'bb'].forEach(ind => {
+            document.getElementById('btn-' + ind).addEventListener('click', function () { this.classList.toggle('active'); showIndicators[ind] = this.classList.contains('active'); rebuildIndicators(); });
         });
-        
-        setInterval(() => {
-            if (nextUpdate) {
-                const secs = Math.max(0, Math.floor((nextUpdate - Date.now()) / 1000));
-                document.getElementById('stat-next').textContent = `${Math.floor(secs/60)}:${(secs%60).toString().padStart(2,'0')}`;
-            }
-        }, 1000);
-        
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // INIT
-        // ═══════════════════════════════════════════════════════════════════════════════
-        
+
+        setInterval(() => { if (nextUpdate) { const s = Math.max(0, Math.floor((nextUpdate - Date.now()) / 1000)); document.getElementById('stat-next').textContent = `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`; } }, 1000);
+
+        // Init
         initChart();
-        loadHistoricalLevels().then(() => {
-            fetchCandles().then(() => { connectWS(); calculateLive(); });
-        });
-        
+        loadHistoricalLevels().then(() => { fetchCandles().then(() => { connectWS(); calculateLive(); }); });
         setInterval(calculateLive, UPDATE_INTERVAL);
     </script>
 </body>
