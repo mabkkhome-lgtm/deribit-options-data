@@ -1,0 +1,39 @@
+name: Collect Minute Options Data
+
+on:
+  schedule:
+    # Run every 5 minutes (GitHub Actions minimum)
+    - cron: '*/5 * * * *'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  collect-data:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install requests
+      
+      - name: Fetch and append minute data
+        run: python deribit_fetcher.py
+      
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "📊 Minute data - $(date -u +'%Y-%m-%d %H:%M') UTC"
+          file_pattern: "data/btc_levels_*.csv"
+          commit_user_name: "GitHub Actions Bot"
+          commit_user_email: "actions@github.com"

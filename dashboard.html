@@ -702,7 +702,7 @@
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <script>
         const DERIBIT_API = 'https://www.deribit.com/api/v2/public';
-        const CSV_URL = 'https://raw.githubusercontent.com/mabkkhome-lgtm/deribit-options-data/main/data/btc_levels_hourly.csv';
+        const CSV_URL = 'https://raw.githubusercontent.com/mabkkhome-lgtm/deribit-options-data/main/data/btc_levels_minute.csv';
         const UPDATE_INTERVAL = 60000;
 
         let chart, candleSeries, rSeries, sSeries, bgSeries, sgSeries;
@@ -848,16 +848,16 @@
                 const now = new Date();
                 const targetExpiry = getTomorrowExpiry();
                 console.log('🎯 Fetching from Deribit, target expiry:', targetExpiry);
-                
+
                 const trades = await fetchDeribitTrades();
                 console.log(`📥 Fetched ${trades.length} trades from Deribit`);
-                
+
                 if (!trades.length) { setStatus('No trades', false); return; }
-                
+
                 // Process trades for target expiry
                 thalesData = processDeribitTrades(trades, targetExpiry);
                 console.log(`📊 ${thalesData.longs.length} longs, ${thalesData.shorts.length} shorts for ${targetExpiry}`);
-                
+
                 // If no trades for tomorrow, try most traded expiry
                 if (!thalesData.longs.length || !thalesData.shorts.length) {
                     const expiryCounts = {};
@@ -871,9 +871,9 @@
                         thalesData = processDeribitTrades(trades, bestExpiry);
                     }
                 }
-                
+
                 updateThalesUI();
-                
+
                 if (thalesData.longs.length && thalesData.shorts.length) {
                     const lv = findLevels(thalesData.longs, thalesData.shorts);
                     if (lv) {
@@ -897,12 +897,12 @@
         }
         function updateThalesUI() { document.getElementById('stat-longs').textContent = thalesData.longs.length; document.getElementById('stat-shorts').textContent = thalesData.shorts.length; document.getElementById('stat-calls').textContent = thalesData.calls; document.getElementById('stat-puts').textContent = thalesData.puts; document.getElementById('stat-premium').textContent = '$' + (thalesData.totalPremium / 1000).toFixed(1) + 'K'; const all = [...thalesData.longs, ...thalesData.shorts].map(p => p.strike); document.getElementById('stat-avgstrike').textContent = '$' + (all.length ? (all.reduce((a, b) => a + b, 0) / all.length).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '--'); const lp = thalesData.longs.length / (thalesData.longs.length + thalesData.shorts.length || 1) * 100; document.getElementById('bias-long').style.width = lp + '%'; document.getElementById('bias-pct').textContent = Math.round(lp) + '% Long'; document.getElementById('strike-list').innerHTML = thalesData.topStrikes.map(s => `<div class="strike-item"><span>$${s.strike.toLocaleString()}</span><span>${s.size.toFixed(2)}</span></div>`).join(''); }
         function updateLevelDisplay(lv) { document.getElementById('r-val').textContent = '$' + lv.r.toLocaleString(); document.getElementById('s-val').textContent = '$' + lv.s.toLocaleString(); document.getElementById('bg-val').textContent = '$' + lv.bg.toLocaleString(); document.getElementById('sg-val').textContent = '$' + lv.sg.toLocaleString(); if (currentPrice > 0) { const pos = ((currentPrice - lv.sg) / (lv.bg - lv.sg) * 100); document.getElementById('pos-marker').style.left = Math.max(0, Math.min(100, pos)) + '%'; document.getElementById('pos-val').textContent = pos.toFixed(1) + '%'; } }
-        function parseDateTime(ds) { 
+        function parseDateTime(ds) {
             // Handle ISO format: 2025-12-21T08:00 or old format: 21/12/2025
             if (ds.includes('T')) {
                 return new Date(ds + ':00Z').getTime() / 1000;
             } else {
-                const [d, m, y] = ds.split('/').map(Number); 
+                const [d, m, y] = ds.split('/').map(Number);
                 return new Date(y, m - 1, d).getTime() / 1000;
             }
         }

@@ -12,7 +12,7 @@ import os
 
 # Configuration
 DERIBIT_API = "https://www.deribit.com/api/v2"
-OUTPUT_FILE = "data/btc_levels_hourly.csv"
+OUTPUT_FILE = "data/btc_levels_minute.csv"
 
 def parse_instrument(name):
     """Parse instrument name like 'BTC-22DEC25-90000-C'"""
