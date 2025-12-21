@@ -146,43 +146,19 @@ def find_levels(longs, shorts, underlying_price):
         print(f"  Warning: Invalid S >= R ({s} >= {r}), skipping")
         return None
     
-    # BG = weighted median of BUYER strikes near the money (ATM ±5%)
-    atm_longs = [p for p in longs if underlying_price * 0.95 <= p['strike'] <= underlying_price * 1.05]
-    if not atm_longs:
-        atm_longs = longs  # Fallback to all if no ATM
+    # BG = weighted average of buyer strikes by size
+    total_buyer = sum(p['size'] for p in longs)
+    bg = round(sum(p['strike'] * p['size'] for p in longs) / total_buyer) if total_buyer > 0 else (r + s) // 2
     
-    # Sort by strike and find weighted median
-    atm_longs_sorted = sorted(atm_longs, key=lambda x: x['strike'])
-    total_buyer = sum(p['size'] for p in atm_longs_sorted)
-    cumsum = 0
-    bg = atm_longs_sorted[-1]['strike']  # Default to highest
-    for p in atm_longs_sorted:
-        cumsum += p['size']
-        if cumsum >= total_buyer / 2:
-            bg = p['strike']
-            break
+    # SG = weighted average of seller strikes by size
+    total_seller = sum(p['size'] for p in shorts)
+    sg = round(sum(p['strike'] * p['size'] for p in shorts) / total_seller) if total_seller > 0 else (r + s) // 2
     
-    # SG = weighted median of SELLER strikes near the money (ATM ±5%)
-    atm_shorts = [p for p in shorts if underlying_price * 0.95 <= p['strike'] <= underlying_price * 1.05]
-    if not atm_shorts:
-        atm_shorts = shorts  # Fallback to all if no ATM
-    
-    atm_shorts_sorted = sorted(atm_shorts, key=lambda x: x['strike'])
-    total_seller = sum(p['size'] for p in atm_shorts_sorted)
-    cumsum = 0
-    sg = atm_shorts_sorted[0]['strike']  # Default to lowest
-    for p in atm_shorts_sorted:
-        cumsum += p['size']
-        if cumsum >= total_seller / 2:
-            sg = p['strike']
-            break
-    
-    # BG should be >= SG (swap if needed)
+    # Ensure proper ordering
     if bg < sg:
         bg, sg = sg, bg
     
     return {'r': r, 's': s, 'bg': bg, 'sg': sg}
-
 
 
 def process_trades(trades):

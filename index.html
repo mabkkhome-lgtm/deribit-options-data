@@ -813,31 +813,45 @@
             }
 
             // ==== GAMMA CALCULATION ====
-            // BG = weighted average of BUYER (long) positions by size
-            // SG = weighted average of SELLER (short) positions by size
-            let totalBuyerSize = 0, buyerWeightedSum = 0;
-            let totalSellerSize = 0, sellerWeightedSum = 0;
-
-            for (const p of longs) {
-                totalBuyerSize += p.size;
-                buyerWeightedSum += p.strike * p.size;
+            // BG = weighted median of BUYER strikes near the money (ATM ±5%)
+            // SG = weighted median of SELLER strikes near the money (ATM ±5%)
+            const avgPrice = (r + s) / 2;  // Use midpoint as reference
+            
+            // Filter to ATM strikes (within 5% of average)
+            const atmLongs = longs.filter(p => p.strike >= avgPrice * 0.95 && p.strike <= avgPrice * 1.05);
+            const atmShorts = shorts.filter(p => p.strike >= avgPrice * 0.95 && p.strike <= avgPrice * 1.05);
+            
+            // Use ATM if available, otherwise all
+            const buyerPositions = atmLongs.length ? atmLongs : longs;
+            const sellerPositions = atmShorts.length ? atmShorts : shorts;
+            
+            // Weighted median for buyers
+            const sortedBuyers = [...buyerPositions].sort((a, b) => a.strike - b.strike);
+            const totalBuyerSize = sortedBuyers.reduce((sum, p) => sum + p.size, 0);
+            let cumsum = 0, bg = sortedBuyers[sortedBuyers.length - 1]?.strike || (r + s) / 2;
+            for (const p of sortedBuyers) {
+                cumsum += p.size;
+                if (cumsum >= totalBuyerSize / 2) { bg = p.strike; break; }
             }
-            for (const p of shorts) {
-                totalSellerSize += p.size;
-                sellerWeightedSum += p.strike * p.size;
+            
+            // Weighted median for sellers
+            const sortedSellers = [...sellerPositions].sort((a, b) => a.strike - b.strike);
+            const totalSellerSize = sortedSellers.reduce((sum, p) => sum + p.size, 0);
+            cumsum = 0; let sg = sortedSellers[0]?.strike || (r + s) / 2;
+            for (const p of sortedSellers) {
+                cumsum += p.size;
+                if (cumsum >= totalSellerSize / 2) { sg = p.strike; break; }
             }
 
-            let bg = totalBuyerSize > 0 ? Math.round(buyerWeightedSum / totalBuyerSize) : (r + s) / 2;
-            let sg = totalSellerSize > 0 ? Math.round(sellerWeightedSum / totalSellerSize) : (r + s) / 2;
-
-            // Ensure BG > SG
+            // Ensure BG >= SG
             if (bg < sg) [bg, sg] = [sg, bg];
 
-            console.log(`🎯 Levels: R=${r} (combined PnL crossing), S=${s}`);
-            console.log(`📊 Gamma: BG=${bg} (buyer weighted avg), SG=${sg} (seller weighted avg)`);
+            console.log(`🎯 Levels: R=${r}, S=${s}`);
+            console.log(`📊 Gamma (ATM median): BG=${bg}, SG=${sg}`);
 
             return { r, s, bg, sg };
         }
+
 
 
 
