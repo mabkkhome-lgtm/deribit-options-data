@@ -132,23 +132,19 @@ def find_levels(longs, shorts, underlying_price):
             crossings.append((price - 100) + t * 100)
         prev_diff = diff
     
+    # Require at least 2 crossings for valid levels
+    if len(crossings) < 2:
+        print("  Warning: Less than 2 crossings found, skipping")
+        return None
+    
     # S = left crossing, R = right crossing
-    if len(crossings) >= 2:
-        s = round(crossings[0])
-        r = round(crossings[-1])
-    elif len(crossings) == 1:
-        # Only one crossing - use underlying as reference
-        crossing = round(crossings[0])
-        if crossing < underlying_price:
-            s = crossing
-            r = int(underlying_price * 1.05)
-        else:
-            r = crossing
-            s = int(underlying_price * 0.95)
-    else:
-        # No crossings - use weighted OI
-        s = int(underlying_price * 0.95)
-        r = int(underlying_price * 1.05)
+    s = round(crossings[0])
+    r = round(crossings[-1])
+    
+    # Sanity check - S must be below R
+    if s >= r:
+        print(f"  Warning: Invalid S >= R ({s} >= {r}), skipping")
+        return None
     
     # BG = weighted average of buyer strikes by size
     total_buyer = sum(p['size'] for p in longs)
@@ -163,6 +159,7 @@ def find_levels(longs, shorts, underlying_price):
         bg, sg = sg, bg
     
     return {'r': r, 's': s, 'bg': bg, 'sg': sg}
+
 
 def process_trades(trades):
     """Process trades into longs (buyers) and shorts (sellers)"""
