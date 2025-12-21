@@ -701,9 +701,8 @@
 
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <script>
+        const DERIBIT_API = 'https://www.deribit.com/api/v2/public';
         const CSV_URL = 'https://raw.githubusercontent.com/mabkkhome-lgtm/deribit-options-data/main/data/btc_levels_hourly.csv';
-        const THALES_API = 'https://oss.thales-mfi.com/api/MarketScreener/FetchOptions';
-        const PROXY = 'https://corsproxy.io/?';
         const UPDATE_INTERVAL = 60000;
 
         let chart, candleSeries, rSeries, sSeries, bgSeries, sgSeries;
@@ -740,8 +739,36 @@
         function calcKC(candles, p = 20, m = 1.5) { const u = [], l = []; for (let i = p - 1; i < candles.length; i++) { const s = candles.slice(i - p + 1, i + 1); const ema = s.reduce((a, c) => a + c.close, 0) / p; const atr = s.reduce((a, c) => a + Math.max(c.high - c.low, Math.abs(c.high - (s[s.indexOf(c) - 1]?.close || c.close)), Math.abs(c.low - (s[s.indexOf(c) - 1]?.close || c.close))), 0) / p; u.push({ time: candles[i].time, value: ema + m * atr }); l.push({ time: candles[i].time, value: ema - m * atr }); } return { upper: u, lower: l }; }
         function calcSupertrend(candles, p = 10, m = 3) { const res = []; for (let i = p - 1; i < candles.length; i++) { const s = candles.slice(i - p + 1, i + 1); const atr = s.reduce((a, c) => a + (c.high - c.low), 0) / p; const hl2 = (candles[i].high + candles[i].low) / 2; const up = hl2 - m * atr, dn = hl2 + m * atr; res.push({ time: candles[i].time, value: candles[i].close > dn ? up : dn }); } return res; }
 
-        function getTomorrowExpiry() { const t = new Date(); t.setDate(t.getDate() + 1); t.setUTCHours(0, 0, 0, 0); return Math.floor((t - new Date(0)) / 864e5); }
-        function parseThalesCSV(csv, expiry) { const longs = [], shorts = []; let calls = 0, puts = 0, totalPremium = 0; const sm = {}; for (const ln of csv.trim().split('\n')) { const p = ln.split(','); if (p.length < 7) continue; try { const ex = parseInt(p[1]); if (ex !== expiry) continue; const t = p[0] === '0' ? 'call' : 'put', strike = +p[2], size = +p[5], prem = +p[6]; if (p[4] === '0') longs.push({ type: t, strike, size, premium: prem }); else shorts.push({ type: t, strike, size, premium: prem }); if (t === 'call') calls++; else puts++; totalPremium += prem * size; sm[strike] = (sm[strike] || 0) + size; } catch { } } const ts = Object.entries(sm).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([s, z]) => ({ strike: +s, size: z })); return { longs, shorts, calls, puts, totalPremium, topStrikes: ts }; }
+        function getTomorrowExpiry() { const t = new Date(); t.setDate(t.getDate() + 1); return t.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, '').toUpperCase(); }
+        function parseInstrument(name) { const p = name.split('-'); if (p.length >= 4) return { expiry: p[1], strike: parseInt(p[2]), type: p[3] === 'C' ? 'call' : 'put' }; return null; }
+        async function fetchDeribitTrades() {
+            const now = Date.now();
+            const hoursBack = 12;  // Last 12 hours of trades
+            const startTs = now - hoursBack * 3600000;
+            const url = `${DERIBIT_API}/get_last_trades_by_currency_and_time?currency=BTC&kind=option&start_timestamp=${startTs}&end_timestamp=${now}&count=1000`;
+            try {
+                const resp = await fetch(url);
+                const data = await resp.json();
+                return data.result?.trades || [];
+            } catch (e) { console.error('Deribit fetch error:', e); return []; }
+        }
+        function processDeribitTrades(trades, targetExpiry) {
+            const longs = [], shorts = [];
+            let calls = 0, puts = 0, totalPremium = 0;
+            const strikeMap = {};
+            for (const t of trades) {
+                const parsed = parseInstrument(t.instrument_name);
+                if (!parsed || parsed.expiry !== targetExpiry) continue;
+                const pos = { type: parsed.type, strike: parsed.strike, size: t.amount, premium: t.price * t.index_price };
+                if (t.direction === 'buy') longs.push(pos);
+                else shorts.push(pos);
+                if (parsed.type === 'call') calls++; else puts++;
+                totalPremium += t.price * t.amount * t.index_price;
+                strikeMap[parsed.strike] = (strikeMap[parsed.strike] || 0) + t.amount;
+            }
+            const topStrikes = Object.entries(strikeMap).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([s, z]) => ({ strike: +s, size: z }));
+            return { longs, shorts, calls, puts, totalPremium, topStrikes };
+        }
 
 
         function calcPnL(pos, price, buyer) { let t = 0; for (const p of pos) { const intr = p.type === 'call' ? Math.max(price - p.strike, 0) : Math.max(p.strike - price, 0); t += (buyer ? intr - p.premium : p.premium - intr) * p.size; } return t; }
@@ -815,7 +842,59 @@
 
 
 
-        async function calculateLive() { setStatus('Calculating...', true); try { const now = new Date(), start = new Date(now); start.setUTCHours(0, 0, 0, 0); const res = await fetch(`${PROXY}${THALES_API}?source=1&fromDate=${start.getTime()}&toDate=${now.getTime()}`); thalesData = parseThalesCSV(await res.text(), getTomorrowExpiry()); updateThalesUI(); if (thalesData.longs.length && thalesData.shorts.length) { const lv = findLevels(thalesData.longs, thalesData.shorts); if (lv) { liveLevels = lv; const td = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000); const ex = historicalLevels.find(h => h.timestamp >= td); if (ex) Object.assign(ex, lv); else { historicalLevels.push({ timestamp: td, ...lv }); historicalLevels.sort((a, b) => a.timestamp - b.timestamp); } updateLevelDisplay(lv); document.getElementById('stat-time').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); rebuildLines(); } } setStatus('Live', false); } catch (e) { console.error(e); setStatus('Error', false); } nextUpdate = Date.now() + UPDATE_INTERVAL; }
+        async function calculateLive() {
+            setStatus('Calculating...', true);
+            try {
+                const now = new Date();
+                const targetExpiry = getTomorrowExpiry();
+                console.log('🎯 Fetching from Deribit, target expiry:', targetExpiry);
+                
+                const trades = await fetchDeribitTrades();
+                console.log(`📥 Fetched ${trades.length} trades from Deribit`);
+                
+                if (!trades.length) { setStatus('No trades', false); return; }
+                
+                // Process trades for target expiry
+                thalesData = processDeribitTrades(trades, targetExpiry);
+                console.log(`📊 ${thalesData.longs.length} longs, ${thalesData.shorts.length} shorts for ${targetExpiry}`);
+                
+                // If no trades for tomorrow, try most traded expiry
+                if (!thalesData.longs.length || !thalesData.shorts.length) {
+                    const expiryCounts = {};
+                    for (const t of trades) {
+                        const p = parseInstrument(t.instrument_name);
+                        if (p) expiryCounts[p.expiry] = (expiryCounts[p.expiry] || 0) + 1;
+                    }
+                    const bestExpiry = Object.entries(expiryCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+                    if (bestExpiry) {
+                        console.log('📌 Using most traded expiry:', bestExpiry);
+                        thalesData = processDeribitTrades(trades, bestExpiry);
+                    }
+                }
+                
+                updateThalesUI();
+                
+                if (thalesData.longs.length && thalesData.shorts.length) {
+                    const lv = findLevels(thalesData.longs, thalesData.shorts);
+                    if (lv) {
+                        liveLevels = lv;
+                        const td = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000);
+                        const ex = historicalLevels.find(h => h.timestamp >= td);
+                        if (ex) Object.assign(ex, lv);
+                        else { historicalLevels.push({ timestamp: td, ...lv }); historicalLevels.sort((a, b) => a.timestamp - b.timestamp); }
+                        updateLevelDisplay(lv);
+                        document.getElementById('stat-time').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                        rebuildLines();
+                        console.log('✅ Levels from Deribit:', lv);
+                    }
+                }
+                setStatus('Live (Deribit)', false);
+            } catch (e) {
+                console.error('Deribit error:', e);
+                setStatus('Error', false);
+            }
+            nextUpdate = Date.now() + UPDATE_INTERVAL;
+        }
         function updateThalesUI() { document.getElementById('stat-longs').textContent = thalesData.longs.length; document.getElementById('stat-shorts').textContent = thalesData.shorts.length; document.getElementById('stat-calls').textContent = thalesData.calls; document.getElementById('stat-puts').textContent = thalesData.puts; document.getElementById('stat-premium').textContent = '$' + (thalesData.totalPremium / 1000).toFixed(1) + 'K'; const all = [...thalesData.longs, ...thalesData.shorts].map(p => p.strike); document.getElementById('stat-avgstrike').textContent = '$' + (all.length ? (all.reduce((a, b) => a + b, 0) / all.length).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '--'); const lp = thalesData.longs.length / (thalesData.longs.length + thalesData.shorts.length || 1) * 100; document.getElementById('bias-long').style.width = lp + '%'; document.getElementById('bias-pct').textContent = Math.round(lp) + '% Long'; document.getElementById('strike-list').innerHTML = thalesData.topStrikes.map(s => `<div class="strike-item"><span>$${s.strike.toLocaleString()}</span><span>${s.size.toFixed(2)}</span></div>`).join(''); }
         function updateLevelDisplay(lv) { document.getElementById('r-val').textContent = '$' + lv.r.toLocaleString(); document.getElementById('s-val').textContent = '$' + lv.s.toLocaleString(); document.getElementById('bg-val').textContent = '$' + lv.bg.toLocaleString(); document.getElementById('sg-val').textContent = '$' + lv.sg.toLocaleString(); if (currentPrice > 0) { const pos = ((currentPrice - lv.sg) / (lv.bg - lv.sg) * 100); document.getElementById('pos-marker').style.left = Math.max(0, Math.min(100, pos)) + '%'; document.getElementById('pos-val').textContent = pos.toFixed(1) + '%'; } }
         function parseDateTime(ds) { 
