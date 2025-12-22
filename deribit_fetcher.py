@@ -35,65 +35,6 @@ def get_today_expiry():
     today = datetime.now(timezone.utc)
     return today.strftime('%d%b%y').upper()
 
-def fetch_trades(hours_back=24):
-    """Fetch BTC option trades from the last N hours"""
-    now = datetime.now(timezone.utc)
-    start = now - timedelta(hours=hours_back)
-    
-    start_ts = int(start.timestamp() * 1000)
-    end_ts = int(now.timestamp() * 1000)
-    
-    all_trades = []
-    count = 1000  # Max per request
-    
-    print(f"Fetching trades from {start.strftime('%Y-%m-%d %H:%M')} to {now.strftime('%Y-%m-%d %H:%M')}")
-    
-    # Deribit returns trades in batches, need to paginate
-    while True:
-        url = f"{DERIBIT_API}/public/get_last_trades_by_currency_and_time"
-        params = {
-            'currency': 'BTC',
-            'kind': 'option',
-            'start_timestamp': start_ts,
-            'end_timestamp': end_ts,
-            'count': count
-        }
-        
-        resp = requests.get(url, params=params, timeout=30)
-        data = resp.json()
-        
-        if 'result' not in data or 'trades' not in data['result']:
-            break
-        
-        trades = data['result']['trades']
-        if not trades:
-            break
-        
-        all_trades.extend(trades)
-        
-        # Check if there are more
-        has_more = data['result'].get('has_more', False)
-        if not has_more or len(trades) < count:
-            break
-        
-        # Update end_ts to get older trades
-        end_ts = min(t['timestamp'] for t in trades) - 1
-    
-    print(f"Fetched {len(all_trades)} trades")
-    return all_trades
-
-def filter_trades_by_expiry(trades, target_expiry):
-    """Filter trades to only include a specific expiry"""
-    filtered = []
-    for t in trades:
-        parsed = parse_instrument(t['instrument_name'])
-        if parsed and parsed['expiry'] == target_expiry:
-            filtered.append({
-                **t,
-                **parsed
-            })
-    return filtered
-
 def calculate_pnl(positions, underlying, is_buyer):
     """Calculate PnL at a given underlying price"""
     total = 0
@@ -184,90 +125,126 @@ def find_levels(longs, shorts, underlying_price):
     return {'r': r, 's': s, 'bg': bg, 'sg': sg}
 
 
+def fetch_open_interest():
+    """Fetch active Open Interest for all BTC options"""
+    print(f"Fetching Open Interest data from Deribit...")
+    try:
+        url = f"{DERIBIT_API}/public/get_book_summary_by_currency"
+        params = {'currency': 'BTC', 'kind': 'option'}
+        resp = requests.get(url, params=params, timeout=10)
+        data = resp.json().get('result', [])
+        print(f"Fetched {len(data)} active instruments")
+        return data
+    except Exception as e:
+        print(f"Error fetching data: {e}")
+        return []
 
-def process_trades(trades):
-    """Process trades into longs (buyers) and shorts (sellers)"""
-    longs = []  # Buyers
-    shorts = []  # Sellers
+def process_oi_data(data):
+    """Process OI data into longs and shorts for PnL calculation"""
+    longs = []
+    shorts = []
     
-    for t in trades:
+    # In the OI model, for every contract open, there is a Buyer (Long) and Seller (Short).
+    # We calculate the PnL for the Entire Market.
+    # Longs = Holders of the option
+    # Shorts = Writers of the option
+    
+    for item in data:
+        # Skip if no OI
+        if item.get('open_interest', 0) <= 0:
+            continue
+            
+        parsed = parse_instrument(item['instrument_name'])
+        if not parsed:
+            continue
+            
+        # Use Mark Price as the current premium/value approximation
+        premium = item.get('mark_price')
+        if premium is None:
+            premium = item.get('mid_price')
+        
+        # Get underlying index price
+        index_price = item.get('underlying_price')
+        
+        if premium is None or index_price is None:
+            continue
+
         pos = {
-            'strike': t['strike'],
-            'type': t['type'],
-            'size': t['amount'],
-            'premium': t['price'],  # In BTC
-            'index_price': t.get('index_price', 88000)
+            'strike': parsed['strike'],
+            'type': parsed['type'],
+            'size': item['open_interest'],
+            'premium': premium,       # Current market value (BTC)
+            'index_price': index_price,
+            'expiry': parsed['expiry']
         }
         
-        if t['direction'] == 'buy':
-            longs.append(pos)
-        else:
-            shorts.append(pos)
-    
+        # Add to both sides - reflecting the total market state
+        longs.append(pos)
+        shorts.append(pos)
+        
+    return longs, shorts
+
     return longs, shorts
 
 def get_underlying_price():
     """Get current BTC price from Deribit"""
     url = f"{DERIBIT_API}/public/get_index_price"
     params = {'index_name': 'btc_usd'}
-    resp = requests.get(url, params=params, timeout=10)
-    data = resp.json()
-    return data.get('result', {}).get('index_price', 88000)
+    try:
+        resp = requests.get(url, params=params, timeout=10)
+        data = resp.json()
+        return data.get('result', {}).get('index_price', 88000)
+    except:
+        return 88000
 
 def main():
+
     print("=" * 60)
-    print("Direct Deribit Options Data Fetcher")
+    print("Deribit Options Chain Data (Open Interest Method)")
     print("=" * 60)
     
     # Get current price
     underlying = get_underlying_price()
     print(f"\nCurrent BTC: ${underlying:,.2f}")
     
+    # Fetch all OI data
+    oi_data = fetch_open_interest()
+    
+    if not oi_data:
+        print("No data found!")
+        return
+    
     # Get tomorrow's expiry
     target_expiry = get_tomorrow_expiry()
     print(f"Target expiry: {target_expiry}")
     
-    # Fetch trades
-    all_trades = fetch_trades(hours_back=24)
+    # Filter to target expiry first
+    target_data = [x for x in oi_data if parse_instrument(x['instrument_name'])['expiry'] == target_expiry]
+    print(f"Contracts for {target_expiry}: {len(target_data)}")
     
-    if not all_trades:
-        print("No trades found!")
-        return
-    
-    # Filter to target expiry
-    expiry_trades = filter_trades_by_expiry(all_trades, target_expiry)
-    print(f"Trades for {target_expiry}: {len(expiry_trades)}")
-    
-    if not expiry_trades:
-        # Try today's expiry as fallback
-        target_expiry = get_today_expiry()
-        print(f"Trying today's expiry: {target_expiry}")
-        expiry_trades = filter_trades_by_expiry(all_trades, target_expiry)
-        print(f"Trades for {target_expiry}: {len(expiry_trades)}")
-    
-    if not expiry_trades:
-        # Find expiry with most trades
-        expiry_counts = {}
-        for t in all_trades:
-            parsed = parse_instrument(t['instrument_name'])
-            if parsed:
-                expiry_counts[parsed['expiry']] = expiry_counts.get(parsed['expiry'], 0) + 1
+    # Fallback logic if target has low volume/OI
+    if len(target_data) < 10:
+        # Find expiry with most OI
+        expiry_oi = {}
+        for x in oi_data:
+            p = parse_instrument(x['instrument_name'])
+            if p:
+                expiry_oi[p['expiry']] = expiry_oi.get(p['expiry'], 0) + x['open_interest']
         
-        if expiry_counts:
-            target_expiry = max(expiry_counts.items(), key=lambda x: x[1])[0]
-            print(f"Using most traded expiry: {target_expiry}")
-            expiry_trades = filter_trades_by_expiry(all_trades, target_expiry)
-            print(f"Trades for {target_expiry}: {len(expiry_trades)}")
-    
-    # Process into longs and shorts
-    longs, shorts = process_trades(expiry_trades)
-    print(f"Longs (buyers): {len(longs)}, Shorts (sellers): {len(shorts)}")
+        if expiry_oi:
+            target_expiry = max(expiry_oi.items(), key=lambda x: x[1])[0]
+            print(f"Using liquid expiry: {target_expiry} (OI: {expiry_oi[target_expiry]:.0f})")
+            target_data = [x for x in oi_data if parse_instrument(x['instrument_name'])['expiry'] == target_expiry]
+
+    # Process into positions
+    longs, shorts = process_oi_data(target_data)
+    print(f"Processed Positions: {len(longs)} Strikes with Open Interest")
     
     # Calculate levels
     levels = find_levels(longs, shorts, underlying)
     
     if levels:
-        print(f"\n📊 LEVELS (from Deribit):")
+        print(f"\n📊 LEVELS (OI Based):")
         print(f"   R (Resistance): ${levels['r']:,}")
         print(f"   S (Support):    ${levels['s']:,}")
         print(f"   BG (Buyer Gamma): ${levels['bg']:,}")
@@ -275,11 +252,8 @@ def main():
         
         # Save to CSV
         os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
-        
         now = datetime.now(timezone.utc)
         iso_time = now.strftime('%Y-%m-%dT%H:%M')
-        
-        # Check if file exists and has header
         write_header = not os.path.exists(OUTPUT_FILE) or os.path.getsize(OUTPUT_FILE) == 0
         
         with open(OUTPUT_FILE, 'a') as f:
@@ -290,6 +264,7 @@ def main():
         print(f"\n✅ Saved to {OUTPUT_FILE}")
     else:
         print("\n❌ Could not calculate levels")
+
 
 if __name__ == "__main__":
     main()

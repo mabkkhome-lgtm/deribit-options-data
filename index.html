@@ -741,34 +741,51 @@
 
         function getTomorrowExpiry() { const t = new Date(); t.setDate(t.getDate() + 1); return t.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, '').toUpperCase(); }
         function parseInstrument(name) { const p = name.split('-'); if (p.length >= 4) return { expiry: p[1], strike: parseInt(p[2]), type: p[3] === 'C' ? 'call' : 'put' }; return null; }
-        async function fetchDeribitTrades() {
-            const now = Date.now();
-            const hoursBack = 12;  // Last 12 hours of trades
-            const startTs = now - hoursBack * 3600000;
-            const url = `${DERIBIT_API}/get_last_trades_by_currency_and_time?currency=BTC&kind=option&start_timestamp=${startTs}&end_timestamp=${now}&count=1000`;
+        async function fetchDeribitOpenInterest() {
+            const url = `${DERIBIT_API}/get_book_summary_by_currency?currency=BTC&kind=option`;
             try {
                 const resp = await fetch(url);
                 const data = await resp.json();
-                return data.result?.trades || [];
+                return data.result || [];
             } catch (e) { console.error('Deribit fetch error:', e); return []; }
         }
-        function processDeribitTrades(trades, targetExpiry) {
+        function processOpenInterest(data, targetExpiry) {
             const longs = [], shorts = [];
             let calls = 0, puts = 0, totalPremium = 0;
             const strikeMap = {};
-            for (const t of trades) {
-                const parsed = parseInstrument(t.instrument_name);
+
+            for (const item of data) {
+                // Skip invalid or no OI
+                if (!item.open_interest || item.open_interest <= 0) continue;
+
+                const parsed = parseInstrument(item.instrument_name);
                 if (!parsed || parsed.expiry !== targetExpiry) continue;
-                const pos = { type: parsed.type, strike: parsed.strike, size: t.amount, premium: t.price * t.index_price };
-                if (t.direction === 'buy') longs.push(pos);
-                else shorts.push(pos);
-                if (parsed.type === 'call') calls++; else puts++;
-                totalPremium += t.price * t.amount * t.index_price;
-                strikeMap[parsed.strike] = (strikeMap[parsed.strike] || 0) + t.amount;
+
+                // Use Mark Price or Mid Price
+                const premium = item.mark_price || item.mid_price || 0;
+                const indexPrice = item.underlying_price || 88000;
+
+                const pos = {
+                    type: parsed.type,
+                    strike: parsed.strike,
+                    size: item.open_interest,
+                    premium: premium,
+                    indexPrice: indexPrice // Use item's index price
+                };
+
+                // Add to BOTH sides (Market Map: 1 OI = 1 Long, 1 Short)
+                longs.push(pos);
+                shorts.push(pos);
+
+                if (parsed.type === 'call') calls += pos.size; else puts += pos.size;
+                totalPremium += premium * pos.size * indexPrice;
+                strikeMap[parsed.strike] = (strikeMap[parsed.strike] || 0) + pos.size;
             }
+
             const topStrikes = Object.entries(strikeMap).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([s, z]) => ({ strike: +s, size: z }));
             return { longs, shorts, calls, puts, totalPremium, topStrikes };
         }
+
 
 
         function calcPnL(pos, price, buyer) { let t = 0; for (const p of pos) { const intr = p.type === 'call' ? Math.max(price - p.strike, 0) : Math.max(p.strike - price, 0); t += (buyer ? intr - p.premium : p.premium - intr) * p.size; } return t; }
@@ -816,15 +833,15 @@
             // BG = weighted median of BUYER strikes near the money (ATM ±5%)
             // SG = weighted median of SELLER strikes near the money (ATM ±5%)
             const avgPrice = (r + s) / 2;  // Use midpoint as reference
-            
+
             // Filter to ATM strikes (within 5% of average)
             const atmLongs = longs.filter(p => p.strike >= avgPrice * 0.95 && p.strike <= avgPrice * 1.05);
             const atmShorts = shorts.filter(p => p.strike >= avgPrice * 0.95 && p.strike <= avgPrice * 1.05);
-            
+
             // Use ATM if available, otherwise all
             const buyerPositions = atmLongs.length ? atmLongs : longs;
             const sellerPositions = atmShorts.length ? atmShorts : shorts;
-            
+
             // Weighted median for buyers
             const sortedBuyers = [...buyerPositions].sort((a, b) => a.strike - b.strike);
             const totalBuyerSize = sortedBuyers.reduce((sum, p) => sum + p.size, 0);
@@ -833,7 +850,7 @@
                 cumsum += p.size;
                 if (cumsum >= totalBuyerSize / 2) { bg = p.strike; break; }
             }
-            
+
             // Weighted median for sellers
             const sortedSellers = [...sellerPositions].sort((a, b) => a.strike - b.strike);
             const totalSellerSize = sortedSellers.reduce((sum, p) => sum + p.size, 0);
@@ -861,30 +878,31 @@
             try {
                 const now = new Date();
                 const targetExpiry = getTomorrowExpiry();
-                console.log('🎯 Fetching from Deribit, target expiry:', targetExpiry);
+                console.log('🎯 Fetching Open Interest from Deribit...');
 
-                const trades = await fetchDeribitTrades();
-                console.log(`📥 Fetched ${trades.length} trades from Deribit`);
+                const oiData = await fetchDeribitOpenInterest();
+                console.log(`📥 Fetched ${oiData.length} instruments with OI`);
 
-                if (!trades.length) { setStatus('No trades', false); return; }
+                if (!oiData.length) { setStatus('No data', false); return; }
 
-                // Process trades for target expiry
-                thalesData = processDeribitTrades(trades, targetExpiry);
-                console.log(`📊 ${thalesData.longs.length} longs, ${thalesData.shorts.length} shorts for ${targetExpiry}`);
+                // Process OI for target expiry
+                thalesData = processOpenInterest(oiData, targetExpiry);
+                console.log(`📊 ${thalesData.longs.length} strikes with OI for ${targetExpiry}`);
 
-                // If no trades for tomorrow, try most traded expiry
-                if (!thalesData.longs.length || !thalesData.shorts.length) {
-                    const expiryCounts = {};
-                    for (const t of trades) {
-                        const p = parseInstrument(t.instrument_name);
-                        if (p) expiryCounts[p.expiry] = (expiryCounts[p.expiry] || 0) + 1;
+                // If no data for tomorrow, try liquid expiry
+                if (!thalesData.longs.length) {
+                    const expiryOI = {};
+                    for (const item of oiData) {
+                        const p = parseInstrument(item.instrument_name);
+                        if (p) expiryOI[p.expiry] = (expiryOI[p.expiry] || 0) + item.open_interest;
                     }
-                    const bestExpiry = Object.entries(expiryCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+                    const bestExpiry = Object.entries(expiryOI).sort((a, b) => b[1] - a[1])[0]?.[0];
                     if (bestExpiry) {
-                        console.log('📌 Using most traded expiry:', bestExpiry);
-                        thalesData = processDeribitTrades(trades, bestExpiry);
+                        console.log('📌 Using liquid expiry:', bestExpiry);
+                        thalesData = processOpenInterest(oiData, bestExpiry);
                     }
                 }
+
 
                 updateThalesUI();
 
