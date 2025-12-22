@@ -788,7 +788,17 @@
 
 
 
-        function calcPnL(pos, price, buyer) { let t = 0; for (const p of pos) { const intr = p.type === 'call' ? Math.max(price - p.strike, 0) : Math.max(p.strike - price, 0); t += (buyer ? intr - p.premium : p.premium - intr) * p.size; } return t; }
+
+        function calcPnL(pos, price, buyer) {
+            let t = 0;
+            for (const p of pos) {
+                const intr = p.type === 'call' ? Math.max(price - p.strike, 0) : Math.max(p.strike - price, 0);
+                const premiumUsd = p.premium * (p.indexPrice || price); // Convert BTC premium to USD
+                t += (buyer ? intr - premiumUsd : premiumUsd - intr) * p.size;
+            }
+            return t;
+        }
+
 
         function findLevels(longs, shorts) {
             if (!longs.length || !shorts.length) return null;
