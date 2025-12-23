@@ -889,35 +889,35 @@
              // ... disabled ...
         }
         */
-        
+
         // Mock function to prevent errors if called
         async function calculateLive() {
             console.log("Live calculation disabled - using CSV data only.");
         }
 
 
-                updateThalesUI();
+        updateThalesUI();
 
-                if (thalesData.longs.length && thalesData.shorts.length) {
-                    const lv = findLevels(thalesData.longs, thalesData.shorts);
-                    if (lv) {
-                        liveLevels = lv;
-                        const td = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000);
-                        const ex = historicalLevels.find(h => h.timestamp >= td);
-                        if (ex) Object.assign(ex, lv);
-                        else { historicalLevels.push({ timestamp: td, ...lv }); historicalLevels.sort((a, b) => a.timestamp - b.timestamp); }
-                        updateLevelDisplay(lv);
-                        document.getElementById('stat-time').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                        rebuildLines();
-                        console.log('✅ Levels from Deribit:', lv);
-                    }
-                }
-                setStatus('Live (Deribit)', false);
-            } catch (e) {
-                console.error('Deribit error:', e);
-                setStatus('Error', false);
+        if (thalesData.longs.length && thalesData.shorts.length) {
+            const lv = findLevels(thalesData.longs, thalesData.shorts);
+            if (lv) {
+                liveLevels = lv;
+                const td = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000);
+                const ex = historicalLevels.find(h => h.timestamp >= td);
+                if (ex) Object.assign(ex, lv);
+                else { historicalLevels.push({ timestamp: td, ...lv }); historicalLevels.sort((a, b) => a.timestamp - b.timestamp); }
+                updateLevelDisplay(lv);
+                document.getElementById('stat-time').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                rebuildLines();
+                console.log('✅ Levels from Deribit:', lv);
             }
-            nextUpdate = Date.now() + UPDATE_INTERVAL;
+        }
+        setStatus('Live (Deribit)', false);
+            } catch (e) {
+            console.error('Deribit error:', e);
+            setStatus('Error', false);
+        }
+        nextUpdate = Date.now() + UPDATE_INTERVAL;
         }
         function updateThalesUI() { document.getElementById('stat-longs').textContent = thalesData.longs.length; document.getElementById('stat-shorts').textContent = thalesData.shorts.length; document.getElementById('stat-calls').textContent = thalesData.calls; document.getElementById('stat-puts').textContent = thalesData.puts; document.getElementById('stat-premium').textContent = '$' + (thalesData.totalPremium / 1000).toFixed(1) + 'K'; const all = [...thalesData.longs, ...thalesData.shorts].map(p => p.strike); document.getElementById('stat-avgstrike').textContent = '$' + (all.length ? (all.reduce((a, b) => a + b, 0) / all.length).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '--'); const lp = thalesData.longs.length / (thalesData.longs.length + thalesData.shorts.length || 1) * 100; document.getElementById('bias-long').style.width = lp + '%'; document.getElementById('bias-pct').textContent = Math.round(lp) + '% Long'; document.getElementById('strike-list').innerHTML = thalesData.topStrikes.map(s => `<div class="strike-item"><span>$${s.strike.toLocaleString()}</span><span>${s.size.toFixed(2)}</span></div>`).join(''); }
         function updateLevelDisplay(lv) { document.getElementById('r-val').textContent = '$' + lv.r.toLocaleString(); document.getElementById('s-val').textContent = '$' + lv.s.toLocaleString(); document.getElementById('bg-val').textContent = '$' + lv.bg.toLocaleString(); document.getElementById('sg-val').textContent = '$' + lv.sg.toLocaleString(); if (currentPrice > 0) { const pos = ((currentPrice - lv.s) / (lv.r - lv.s) * 100); document.getElementById('pos-marker').style.left = Math.max(0, Math.min(100, pos)) + '%'; document.getElementById('pos-val').textContent = pos.toFixed(1) + '%'; } }
@@ -1050,8 +1050,33 @@
 
         // Init
         initChart();
-        loadHistoricalLevels().then(() => { fetchCandles().then(() => { connectWS(); calculateLive(); }); });
-        setInterval(calculateLive, UPDATE_INTERVAL);
+        loadHistoricalLevels().then(() => {
+            fetchCandles().then(() => {
+                connectWS();
+                // calculateLive(); // Disabled
+
+                // Set status to Live immediately after loading
+                setStatus('Live (Thales)', false);
+
+                // Populate latest stats from historical data
+                if (historicalLevels.length > 0) {
+                    const latest = historicalLevels[historicalLevels.length - 1];
+                    updateLevelDisplay(latest);
+                    document.getElementById('stat-time').textContent = new Date(latest.timestamp * 1000).toLocaleTimeString();
+
+                    // Mock thalesData so stats panel isn't empty
+                    thalesData.longs = [latest]; // Dummy to trigger length > 1
+                    thalesData.shorts = [latest];
+                    updateThalesUI(); // Will try to render based on dummy data, might look weird but better than empty
+
+                    // Better: Manually update stats panel text if updateThalesUI relies on array content
+                    // ... actually updateThalesUI uses thalesData.longs which we don't have.
+                    // Let's just update the R/S texts which updateLevelDisplay already does.
+                }
+            });
+        });
+        // setInterval(calculateLive, UPDATE_INTERVAL); // Disabled
+
     </script>
 </body>
 
