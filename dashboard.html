@@ -883,35 +883,17 @@
 
 
 
+        // Live calculation disabled to ensure consistency with backend CSV
+        /*
         async function calculateLive() {
-            setStatus('Calculating...', true);
-            try {
-                const now = new Date();
-                const targetExpiry = getTomorrowExpiry();
-                console.log('🎯 Fetching Open Interest from Deribit...');
-
-                const oiData = await fetchDeribitOpenInterest();
-                console.log(`📥 Fetched ${oiData.length} instruments with OI`);
-
-                if (!oiData.length) { setStatus('No data', false); return; }
-
-                // Process OI for target expiry
-                thalesData = processOpenInterest(oiData, targetExpiry);
-                console.log(`📊 ${thalesData.longs.length} strikes with OI for ${targetExpiry}`);
-
-                // If no data for tomorrow, try liquid expiry
-                if (!thalesData.longs.length) {
-                    const expiryOI = {};
-                    for (const item of oiData) {
-                        const p = parseInstrument(item.instrument_name);
-                        if (p) expiryOI[p.expiry] = (expiryOI[p.expiry] || 0) + item.open_interest;
-                    }
-                    const bestExpiry = Object.entries(expiryOI).sort((a, b) => b[1] - a[1])[0]?.[0];
-                    if (bestExpiry) {
-                        console.log('📌 Using liquid expiry:', bestExpiry);
-                        thalesData = processOpenInterest(oiData, bestExpiry);
-                    }
-                }
+             // ... disabled ...
+        }
+        */
+        
+        // Mock function to prevent errors if called
+        async function calculateLive() {
+            console.log("Live calculation disabled - using CSV data only.");
+        }
 
 
                 updateThalesUI();
