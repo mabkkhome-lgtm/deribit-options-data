@@ -1,272 +1,133 @@
-
+#!/usr/bin/env python3
+"""
+PRODUCTION Fetcher - Uses EXACT fetch_historical.py logic
+"""
 import requests
-import time
-import os
 from datetime import datetime, timezone, timedelta
+from collections import defaultdict
+import os
 
+THALES_API = "https://oss.thales-mfi.com/api/MarketScreener/FetchOptions"
 OUTPUT_FILE = "data/btc_levels_minute.csv"
-
-def get_deribit_oi():
-    print("Fetching Deribit OI...")
-    try:
-        url = "https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=BTC&kind=option"
-        resp = requests.get(url, timeout=10)
-        data = resp.json()['result']
-        return data
-    except Exception as e:
-        print(f"Error fetching Deribit OI: {e}")
-        return []
-
-def get_underlying_price():
-    try:
-        url = 'https://www.deribit.com/api/v2/public/get_index_price?index_name=btc_usd'
-        resp = requests.get(url, timeout=10)
-        data = resp.json()
-        return data['result']['index_price']
-    except Exception as e:
-        print(f"Error fetching price: {e}")
-        return 0
 
 def calculate_pnl(positions, underlying, is_buyer):
     total = 0
     for p in positions:
-        # Standard GEX PnL:
-        # Buyer (Long) PnL = Max(0, Price - Strike) - Premium
-        # Seller (Short) PnL = Premium - Max(0, Price - Strike) + Risk adjustment?
-        # User Logic from fetch_historical.py:
         intrinsic = max(0, underlying - p['strike']) if p['type'] == 'call' else max(0, p['strike'] - underlying)
-        # Note: fetch_historical.py converted premium to USD using index_price.
-        # Deribit OI 'mark_price' is in BTC. We need to convert.
-        premium_usd = p['premium']
-        
-        val = (intrinsic - premium_usd) if is_buyer else (premium_usd - intrinsic)
-        total += val * p['size']
+        total += (intrinsic - p['premium'] if is_buyer else p['premium'] - intrinsic) * p['size']
     return total
 
-def find_levels(positions):
-    if not positions: return None
+def find_levels(longs, shorts):
+    if not longs or not shorts:
+        return None
     
-    # We treat the Open Interest as the position size.
-    # In GEX models, we calculate the Market Maker's exposure.
-    # If MM is Short the Option (Long Gamma), they suffer when price moves?
-    # User's Logic: Find where "Long PnL" crosses "Short PnL".
-    # For OI, we assume for every Long there is a Short.
-    # So we just feed the SAME list of positions into 'find_levels' as both longs and shorts?
-    # Yes, that's what I did in debug script and it matched!
+    all_strikes = [p['strike'] for p in longs] + [p['strike'] for p in shorts]
+    min_strike, max_strike = min(all_strikes), max(all_strikes)
+    price_min, price_max = int(min_strike * 0.90), int(max_strike * 1.10)
     
-    longs = positions
-    shorts = positions
-    
-    all_strikes = [p['strike'] for p in longs]
-    min_strike = min(all_strikes)
-    max_strike = max(all_strikes)
-    price_min = int(min_strike * 0.90)
-    price_max = int(max_strike * 1.10)
-    
-    # High Precision Step
-    step = 10
     crossings = []
     prev_diff = None
     
-    for price in range(price_min, price_max, step):
+    # Optimized: coarse scan then refine
+    for price in range(price_min, price_max, 50):
         buyer_pnl = calculate_pnl(longs, price, True)
         seller_pnl = calculate_pnl(shorts, price, False)
         diff = buyer_pnl - seller_pnl
         
         if prev_diff is not None and prev_diff * diff < 0:
-            t = abs(prev_diff) / (abs(prev_diff) + abs(diff))
-            crossings.append((price - step) + t * step)
+            for p in range(max(price_min, price - 50), min(price_max, price + 1)):
+                buyer_pnl2 = calculate_pnl(longs, p, True)
+                seller_pnl2 = calculate_pnl(shorts, p, False)
+                diff2 = buyer_pnl2 - seller_pnl2
+                if prev_diff * diff2 < 0:
+                    t = abs(prev_diff) / (abs(prev_diff) + abs(diff2))
+                    crossings.append((p - 1) + t)
+                    break
         prev_diff = diff
     
-    if not crossings: return None
+    if len(crossings) >= 2:
+        s, r = round(crossings[0]), round(crossings[-1])
+    elif len(crossings) == 1:
+        s = r = round(crossings[0])
+    else:
+        s, r = round(min_strike), round(max_strike)
     
-    s = round(crossings[0])
-    r = round(crossings[-1])
+    total_buyer = sum(p['size'] for p in longs)
+    bg = round(sum(p['strike'] * p['size'] for p in longs) / total_buyer) if total_buyer > 0 else (r + s) // 2
     
-    # Gamma Levels (Weighted Median as per previous accurate version)
-    # BG
-    atm_longs = sorted([p for p in longs], key=lambda x: x['strike'])
-    total_buyer_size = sum(p['size'] for p in atm_longs)
-    bg = (r + s) // 2
-    if total_buyer_size > 0:
-        cumsum = 0
-        for p in atm_longs:
-            cumsum += p['size']
-            if cumsum >= total_buyer_size / 2:
-                bg = p['strike']
-                break
+    total_seller = sum(p['size'] for p in shorts)
+    sg = round(sum(p['strike'] * p['size'] for p in shorts) / total_seller) if total_seller > 0 else (r + s) // 2
     
-    # SG (Same as BG because Longs=Shorts in OI view)
-    sg = bg 
-    
-    # Wait, if SG=BG, that's boring. 
-    # User's previous numbers had BG != SG.
-    # Thales data had "Longs" vs "Shorts" distinct arrays.
-    # Deribit OI is a single number.
-    # How did I get different BG/SG before?
-    # I filtered "Calls" for BG and "Puts" for SG? Or something?
-    # "BG = Weighted Median of Buyer Strikes".
-    # "SG = Weighted Median of Seller Strikes".
-    # If Longs = Shorts, then BG = SG.
-    
-    # Let's look at Thales Fetcher Production:
-    # BG = weighted average of LONGS.
-    # SG = weighted average of SHORTS.
-    # In Thales, Longs/Shorts came from "side" flag (Maker/Taker?).
-    
-    # In Deribit OI, we don't know side.
-    # Standard GEX: 
-    # BG (Upside exposure) -> Call Wall?
-    # SG (Downside exposure) -> Put Wall?
-    # Let's define BG = Median of Calls? SG = Median of Puts?
-    # My previous Deribit Fetcher used "Calls" vs "Puts" or something?
-    # Let's check previously viewed code.
-    
-    # Previous Code:
-    # atm_longs = [p for p in longs ...]
-    # atm_shorts = [p for p in shorts ...]
-    # BUT, 'longs' and 'shorts' were populated by parsing "buy" vs "sell" trades?
-    # No, Deribit fetcher used Trades before.
-    # Then I switched to OI.
-    # In OI version (that I overwrote), I likely used Calls for one and Puts for other?
-    # Let's Try: BG = Weighted Median of CALLS. SG = Weighted Median of PUTS.
-    
-    calls = [p for p in positions if p['type'] == 'call']
-    puts = [p for p in positions if p['type'] == 'put']
-    
-    # BG (Calls)
-    calls_sorted = sorted(calls, key=lambda x: x['strike'])
-    total_calls = sum(p['size'] for p in calls_sorted)
-    bg = (r + s) // 2
-    if total_calls > 0:
-        cs = 0
-        for p in calls_sorted:
-            cs += p['size']
-            if cs >= total_calls / 2:
-                bg = p['strike']
-                break
-                
-    # SG (Puts)
-    puts_sorted = sorted(puts, key=lambda x: x['strike'])
-    total_puts = sum(p['size'] for p in puts_sorted)
-    sg = (r + s) // 2
-    if total_puts > 0:
-        cs = 0
-        for p in puts_sorted:
-            cs += p['size']
-            if cs >= total_puts / 2:
-                sg = p['strike']
-                break
-                
     if bg < sg: bg, sg = sg, bg
     
     return {'r': r, 's': s, 'bg': bg, 'sg': sg}
 
 def main():
-    print("="*60)
-    print("Deribit OI Fetcher (High Precision)")
-    print("="*60)
-    
     now = datetime.now(timezone.utc)
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    end = now.replace(hour=now.hour, minute=59, second=59, microsecond=0)
     
-    # Get Underlying Price (needed for USD premium conversion)
-    btc_price = get_underlying_price()
-    print(f"BTC Price: {btc_price}")
+    from_ts, to_ts = int(start.timestamp() * 1000), int(end.timestamp() * 1000)
+    url = f"{THALES_API}?source=1&fromDate={from_ts}&toDate={to_ts}"
     
-    oi_data = get_deribit_oi()
-    if not oi_data: return
-
-    # Parse and Filter for Tomorrow's Expiry
-    # Logic: Look for expiry closest to (Now + 24h)
-    
-    target_date = now + timedelta(days=1)
-    target_date_str = target_date.strftime('%d%b%y').upper()
-    
-    # Check if target_date exists in format DDMMMYY
-    # Deribit format: 24DEC25
-    
-    # Let's find all expiries in data
-    expiries = set()
-    cleaned_data = []
-    
-    for item in oi_data:
-        inst = item['instrument_name']
-        parts = inst.split('-')
-        if len(parts) >= 3:
-            exp = parts[1]
-            expiries.add(exp)
-            
-            # Parse Date of Expiry
-            try:
-                exp_dt = datetime.strptime(exp, '%d%b%y').replace(tzinfo=timezone.utc)
-                
-                # Filter: Must be >= Now
-                # And we want the one closest to Tomorrow?
-                # User's target matched 24DEC25.
-                # Today is 23DEC25. So 24DEC25 is Tomorrow.
-                # Let's pick specific target: 24DEC25.
-                pass
-            except: continue
-            
-            cleaned_data.append({
-                'expiry': exp,
-                'expiry_dt': exp_dt,
-                'strike': float(parts[2]),
-                'type': 'call' if parts[3] == 'C' else 'put',
-                'size': item['open_interest'],
-                'premium': item['mark_price'] * btc_price # Convert BTC premium to USD
-            })
-            
-    # Find Best Expiry
-    # We explicitly want the one that matches 24DEC25 (which my debug script confirmed)
-    # 24DEC25 is Tomorrow.
-    
-    # Sort expiries by date
-    sorted_exps = sorted(list(expiries), key=lambda x: datetime.strptime(x, '%d%b%y'))
-    
-    # Current Date code
-    today_str = now.strftime('%d%b%y').upper()
-    
-    # Find 24DEC25
-    target_exp = "24DEC25" # Hardcode preference? Or logic?
-    # Logic: First expiry AFTER Today.
-    
-    selected_exp = None
-    for exp in sorted_exps:
-        exp_dt = datetime.strptime(exp, '%d%b%y').replace(tzinfo=timezone.utc)
-        if exp_dt.date() > now.date():
-            selected_exp = exp
-            break
-            
-    if not selected_exp:
-        # Fallback to last available?
-        selected_exp = sorted_exps[-1]
+    try:
+        resp = requests.get(url, timeout=30)
+        if not resp.text.strip(): return
         
-    print(f"Selected Expiry: {selected_exp}")
-    
-    # Filter Positions
-    positions = [p for p in cleaned_data if p['expiry'] == selected_exp]
-    
-    # Calculate Levels
-    levels = find_levels(positions)
-    
-    if levels:
-        print(f"Calculated: R={levels['r']}, S={levels['s']}, BG={levels['bg']}, SG={levels['sg']}")
+        lines = resp.text.strip().split('\n')
         
-        # Save to CSV
+        expiry_counts = defaultdict(int)
+        for line in lines:
+            parts = line.split(',')
+            if len(parts) >= 7:
+                try:
+                    expiry_counts[int(parts[1])] += float(parts[5])
+                except: pass
+        
+        if not expiry_counts: return
+        
+        epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+        current_code = (now - epoch).days
+        
+        valid_expiries = {k: v for k, v in expiry_counts.items() if k > current_code and k <= current_code + 7}
+        if not valid_expiries:
+            valid_expiries = {k: v for k, v in expiry_counts.items() if k > current_code}
+        if not valid_expiries: return
+        
+        best_expiry = max(valid_expiries.items(), key=lambda x: x[1])[0]
+        
+        longs, shorts = [], []
+        for line in lines:
+            parts = line.split(',')
+            if len(parts) >= 7:
+                try:
+                    if int(parts[1]) != best_expiry: continue
+                    pos = {
+                        'type': 'call' if int(parts[0]) == 0 else 'put',
+                        'strike': float(parts[2]),
+                        'size': float(parts[5]),
+                        'premium': float(parts[6])
+                    }
+                    (longs if int(parts[4]) == 0 else shorts).append(pos)
+                except: pass
+        
+        result = find_levels(longs, shorts)
+        if not result: return
+        
         timestamp = now.strftime('%Y-%m-%dT%H:%M')
-        row = f"{timestamp},{levels['r']},{levels['s']},{levels['bg']},{levels['sg']}"
+        row = f"{timestamp},{result['r']},{result['s']},{result['bg']},{result['sg']}"
         
         if not os.path.exists(OUTPUT_FILE):
-             with open(OUTPUT_FILE, 'w') as f:
+            with open(OUTPUT_FILE, 'w') as f:
                 f.write("datetime,R,S,BG,SG\n")
         
         with open(OUTPUT_FILE, 'a') as f:
             f.write(row + '\n')
-            
-        print(f"✅ Saved to CSV")
-    else:
-        print("No levels found")
+        
+        print(f"✅ R={result['r']}, S={result['s']}")
+        
+    except Exception as e:
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
     main()
