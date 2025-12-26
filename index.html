@@ -1006,17 +1006,48 @@
         }
 
         async function fetchCandles() {
-            const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${tf}&limit=500`);
-            const d = await res.json();
-            candleData = d.map(x => ({ time: x[0] / 1000, open: +x[1], high: +x[2], low: +x[3], close: +x[4], volume: +x[5] }));
-            candleSeries.setData(candleData);
-            chart.timeScale().fitContent();
-            rebuildLines();
-            // Fetch 24hr change from ticker
-            try { const ticker = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT').then(r => r.json()); openPrice = +ticker.openPrice; updatePriceChange(+ticker.lastPrice); } catch (e) { openPrice = candleData[0]?.open || 0; }
+            // Use Kraken API (Binance is geo-blocked in some regions)
+            const intervals = { '1m': 1, '5m': 5, '15m': 15, '1h': 60, '4h': 240, '1d': 1440, '1w': 10080 };
+            const interval = intervals[tf] || 15;
+            try {
+                const res = await fetch(`https://api.kraken.com/0/public/OHLC?pair=XBTUSD&interval=${interval}`);
+                const json = await res.json();
+                if (json.error && json.error.length) throw new Error(json.error[0]);
+                const data = json.result.XXBTZUSD || json.result.XBTUSD || Object.values(json.result)[0];
+                candleData = data.slice(-500).map(x => ({ time: x[0], open: +x[1], high: +x[2], low: +x[3], close: +x[4], volume: +x[6] }));
+                candleSeries.setData(candleData);
+                chart.timeScale().fitContent();
+                rebuildLines();
+                // Set current price from last candle
+                if (candleData.length) {
+                    currentPrice = candleData[candleData.length - 1].close;
+                    openPrice = candleData[0].open;
+                    document.getElementById('price').textContent = '$' + currentPrice.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                    updatePriceChange(currentPrice);
+                }
+            } catch (e) {
+                console.error('Kraken API error:', e);
+                setStatus('API Error', false);
+            }
         }
         function updatePriceChange(price) { const chg = ((price - openPrice) / openPrice * 100).toFixed(2); const ce = document.getElementById('price-change'); ce.textContent = (chg >= 0 ? '+' : '') + chg + '%'; ce.className = 'price-change ' + (chg >= 0 ? 'up' : 'down'); }
-        function connectWS() { if (ws) ws.close(); if (tf === '1d' || tf === '1w') return; ws = new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${tf}`); ws.onmessage = e => { const { k } = JSON.parse(e.data); currentPrice = +k.c; candleSeries.update({ time: k.t / 1000, open: +k.o, high: +k.h, low: +k.l, close: currentPrice }); const lv = liveLevels || interpolateLevel(k.t / 1000); if (lv) { if (showLines.r) rSeries.update({ time: k.t / 1000, value: lv.r }); if (showLines.s) sSeries.update({ time: k.t / 1000, value: lv.s }); if (showLines.bg) bgSeries.update({ time: k.t / 1000, value: lv.bg }); if (showLines.sg) sgSeries.update({ time: k.t / 1000, value: lv.sg }); updateLevelDisplay(lv); } document.getElementById('price').textContent = '$' + currentPrice.toLocaleString('en-US', { maximumFractionDigits: 0 }); updatePriceChange(currentPrice); }; }
+        function connectWS() {
+            // Binance WS is geo-blocked, use polling instead
+            if (ws) clearInterval(ws);
+            ws = setInterval(async () => {
+                try {
+                    const res = await fetch('https://api.kraken.com/0/public/Ticker?pair=XBTUSD');
+                    const json = await res.json();
+                    if (json.result && json.result.XXBTZUSD) {
+                        currentPrice = +json.result.XXBTZUSD.c[0];
+                        document.getElementById('price').textContent = '$' + currentPrice.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                        updatePriceChange(currentPrice);
+                        const lv = liveLevels || (historicalLevels.length ? historicalLevels[historicalLevels.length - 1] : null);
+                        if (lv) updateLevelDisplay(lv);
+                    }
+                } catch (e) { console.error('Price poll error:', e); }
+            }, 10000);
+        }
 
 
         async function switchTimeframe(ntf) { if (ntf === tf) return; document.querySelectorAll('[data-tf]').forEach(b => b.disabled = true); setStatus('Loading...', true); tf = ntf; try { await fetchCandles(); connectWS(); setStatus('Live', false); } catch { setStatus('Error', false); } document.querySelectorAll('[data-tf]').forEach(b => b.disabled = false); }
