@@ -4,7 +4,7 @@ indicator("Options Levels Tracker", overlay=true, max_lines_count=500, max_label
 // ═══════════════════════════════════════════════════════════════════════════════
 // OPTIONS LEVELS TRACKER
 // Auto-Generated with 90 days of historical data
-// Last Updated: 2026-02-25 13:04 UTC
+// Last Updated: 2026-02-25 17:07 UTC
 // https://github.com/mabkkhome-lgtm/deribit-options-data
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -21,8 +21,8 @@ string tablePosition = input.string("Bottom Right", "Table Position", options=["
 
 // Manual Override (for real-time updates)
 bool useOverride = input.bool(false, "Use Manual Override", group="📊 Manual Override")
-float overrideHigh = input.float(67419, "Today's Resistance", group="📊 Manual Override")
-float overrideLow = input.float(64047, "Today's Support", group="📊 Manual Override")
+float overrideHigh = input.float(67653, "Today's Resistance", group="📊 Manual Override")
+float overrideLow = input.float(64291, "Today's Support", group="📊 Manual Override")
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // EMBEDDED DATA - 90 days
@@ -213,7 +213,7 @@ if not dataLoaded
     array.push(highs, 69316.0)
     array.push(highs, 67931.0)
     array.push(highs, 65539.0)
-    array.push(highs, 67419.0)
+    array.push(highs, 67653.0)
     array.push(lows, 84900.0)
     array.push(lows, 89525.0)
     array.push(lows, 89860.0)
@@ -303,7 +303,7 @@ if not dataLoaded
     array.push(lows, 66236.0)
     array.push(lows, 63624.0)
     array.push(lows, 61736.0)
-    array.push(lows, 64047.0)
+    array.push(lows, 64291.0)
     dataLoaded := true
 
 // ═══════════════════════════════════════════════════════════════════════════════
