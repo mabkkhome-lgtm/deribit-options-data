@@ -4,7 +4,7 @@ indicator("Options Levels Tracker", overlay=true, max_lines_count=500, max_label
 // ═══════════════════════════════════════════════════════════════════════════════
 // OPTIONS LEVELS TRACKER
 // Auto-Generated with 90 days of historical data
-// Last Updated: 2026-08-09 20:30 UTC
+// Last Updated: 2026-08-10 01:42 UTC
 // https://github.com/mabkkhome-lgtm/deribit-options-data
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -21,8 +21,8 @@ string tablePosition = input.string("Bottom Right", "Table Position", options=["
 
 // Manual Override (for real-time updates)
 bool useOverride = input.bool(false, "Use Manual Override", group="📊 Manual Override")
-float overrideHigh = input.float(65595, "Today's Resistance", group="📊 Manual Override")
-float overrideLow = input.float(64000, "Today's Support", group="📊 Manual Override")
+float overrideHigh = input.float(66197, "Today's Resistance", group="📊 Manual Override")
+float overrideLow = input.float(63663, "Today's Support", group="📊 Manual Override")
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // EMBEDDED DATA - 90 days
@@ -34,7 +34,6 @@ var array<float> lows = array.new_float()
 var bool dataLoaded = false
 
 if not dataLoaded
-    array.push(dates, "13/05/2026")
     array.push(dates, "14/05/2026")
     array.push(dates, "15/05/2026")
     array.push(dates, "16/05/2026")
@@ -124,7 +123,7 @@ if not dataLoaded
     array.push(dates, "08/08/2026")
     array.push(dates, "09/08/2026")
     array.push(dates, "10/08/2026")
-    array.push(highs, 81919.0)
+    array.push(dates, "11/08/2026")
     array.push(highs, 81570.0)
     array.push(highs, 81638.0)
     array.push(highs, 80475.0)
@@ -214,7 +213,7 @@ if not dataLoaded
     array.push(highs, 65592.0)
     array.push(highs, 65339.0)
     array.push(highs, 65595.0)
-    array.push(lows, 78981.0)
+    array.push(highs, 66197.0)
     array.push(lows, 79243.0)
     array.push(lows, 78044.0)
     array.push(lows, 78561.0)
@@ -304,6 +303,7 @@ if not dataLoaded
     array.push(lows, 64202.0)
     array.push(lows, 64614.0)
     array.push(lows, 64000.0)
+    array.push(lows, 63663.0)
     dataLoaded := true
 
 // ═══════════════════════════════════════════════════════════════════════════════
